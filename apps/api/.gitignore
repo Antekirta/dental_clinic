@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+*.egg
+
+# Testing / coverage
+htmlcov/
+.coverage
+.coverage.*
+coverage/
+.pytest_cache/
+
+# Type checking
+.mypy_cache/
+
+# Virtual environments
+.venv/  # Recommended directory name for virtual envs
+env/    # Common alternative
+venv/   # Common alternative
+
+# IDE specific files
+.vscode/  # VS Code specific files
+.idea/    # PyCharm specific files
+
+# OS specific files
+.DS_Store
+Thumbs.db
