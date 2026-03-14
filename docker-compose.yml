@@ -15,5 +15,21 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  n8n:
+    image: n8nio/n8n:latest
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      N8N_HOST: ${N8N_HOST:-localhost}
+      N8N_PORT: ${N8N_PORT:-5678}
+      N8N_PROTOCOL: ${N8N_PROTOCOL:-http}
+      N8N_EDITOR_BASE_URL: ${N8N_EDITOR_BASE_URL:-http://localhost:5678}
+      WEBHOOK_URL: ${N8N_WEBHOOK_URL:-http://localhost:5678}
+      GENERIC_TIMEZONE: ${N8N_TIMEZONE:-Europe/London}
+    volumes:
+      - ./apps/automations/.n8n:/home/node/.n8n
+      - ./apps/automations/files:/files
+
 volumes:
   postgres_data:
