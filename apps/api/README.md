@@ -1,6 +1,6 @@
 # Dental Clinic API
 
-FastAPI backend starter for the dental clinic website and automation platform. It includes sync SQLAlchemy 2.0 setup, Alembic migrations, PostgreSQL support, Docker tooling, and a basic health endpoint.
+FastAPI backend starter for website and automation platform. It includes sync SQLAlchemy 2.0 setup, Alembic migrations, PostgreSQL support, Docker tooling, and a basic health endpoint.
 
 ## Setup
 
@@ -16,7 +16,24 @@ Install dependencies locally:
 pip install -e .[dev]
 ```
 
-## Run locally
+## Local development
+
+Recommended workflow:
+
+- run PostgreSQL in Docker
+- run the FastAPI app locally with auto-reload
+
+If you run the API locally, update `.env` so the database host points to `localhost` instead of the Docker service name:
+
+```env
+DATABASE_URL=postgresql+psycopg2://postgres:postgres@localhost:5432/dental_clinic
+```
+
+Start PostgreSQL only:
+
+```bash
+docker compose up db -d
+```
 
 Start the API with auto-reload:
 
@@ -26,7 +43,9 @@ uvicorn app.main:app --reload
 
 The health check will be available at `http://localhost:8000/health`.
 
-## Run with Docker Compose
+## Run everything with Docker Compose
+
+If you want the API and PostgreSQL to run in containers together, keep the default `.env.example` database host (`db`) and run:
 
 ```bash
 docker compose up --build
