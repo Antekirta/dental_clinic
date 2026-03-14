@@ -1,0 +1,33 @@
+---
+import "@/styles/globals.css";
+
+interface Props {
+  description?: string;
+  title?: string;
+}
+
+const {
+  description = "Dental clinic frontend built with Astro, Vue 3, and shadcn-vue.",
+  title = "Dental Clinic"
+} = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="description" content={description} />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{title}</title>
+  </head>
+  <body class="min-h-screen bg-background text-foreground">
+    <div class="relative isolate overflow-hidden">
+      <div class="absolute inset-x-0 top-0 -z-10 h-[28rem] bg-[radial-gradient(circle_at_top,_rgba(14,165,233,0.16),_transparent_55%)]" />
+      <div class="absolute right-0 top-40 -z-10 h-64 w-64 rounded-full bg-primary/10 blur-3xl" />
+
+      <main class="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-6 py-10 sm:px-10 lg:px-12">
+        <slot />
+      </main>
+    </div>
+  </body>
+</html>
