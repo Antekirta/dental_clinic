@@ -2,13 +2,13 @@ services:
   db:
     image: postgres:16
     environment:
-      POSTGRES_DB: dental_clinic
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${POSTGRES_DB:-dental_clinic}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     ports:
       - "5434:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d dental_clinic"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-dental_clinic}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -23,8 +23,21 @@ services:
         condition: service_healthy
     ports:
       - "8055:8055"
-    env_file:
-      - ./apps/cms/.env
+    environment:
+      KEY: ${DIRECTUS_KEY}
+      SECRET: ${DIRECTUS_SECRET}
+      DB_CLIENT: ${DIRECTUS_DB_CLIENT:-pg}
+      DB_HOST: ${DIRECTUS_DB_HOST:-db}
+      DB_PORT: ${DIRECTUS_DB_PORT:-5432}
+      DB_DATABASE: ${DIRECTUS_DB_DATABASE:-${POSTGRES_DB:-dental_clinic}}
+      DB_USER: ${DIRECTUS_DB_USER:-${POSTGRES_USER:-postgres}}
+      DB_PASSWORD: ${DIRECTUS_DB_PASSWORD:-${POSTGRES_PASSWORD:-postgres}}
+      ADMIN_EMAIL: ${DIRECTUS_ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${DIRECTUS_ADMIN_PASSWORD}
+      PUBLIC_URL: ${DIRECTUS_PUBLIC_URL:-http://localhost:8055}
+      WEBSOCKETS_ENABLED: ${DIRECTUS_WEBSOCKETS_ENABLED:-true}
+      CORS_ENABLED: ${DIRECTUS_CORS_ENABLED:-true}
+      CORS_ORIGIN: ${DIRECTUS_CORS_ORIGIN:-true}
     volumes:
       - ./apps/cms/uploads:/directus/uploads
       - ./apps/cms/extensions:/directus/extensions

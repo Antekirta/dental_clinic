@@ -6,19 +6,19 @@ PostgreSQL database used by the API.
 
 ## Files
 
-- `.env` - local Directus secrets and database connection settings
+- root `.env` - shared environment file for API, Directus, and automation services
 - `extensions/` - custom Directus extensions
 - `uploads/` - uploaded files persisted outside the container
 
 ## First-time setup
 
-1. Copy the example environment file:
+1. Update the root environment file:
 
    ```powershell
-   Copy-Item apps/cms/.env.example apps/cms/.env
+   code .env
    ```
 
-2. Update `KEY`, `SECRET`, `ADMIN_EMAIL`, and `ADMIN_PASSWORD`.
+2. Set the `DIRECTUS_*` variables in the root `.env`.
    Use a real email format such as `admin@example.com`; Directus rejects
    placeholder addresses like `.local` during bootstrap.
 
