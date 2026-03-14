@@ -53,7 +53,6 @@ docker compose up --build
 
 This starts:
 
-- `api` on port `8000`
 - `db` on port `5432`
 
 ## Alembic migrations
