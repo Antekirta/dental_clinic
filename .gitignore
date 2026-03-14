@@ -105,6 +105,12 @@ apps/automations/.n8n/*
 !apps/automations/.n8n/.gitkeep
 
 # =========================
+# Directus local runtime data
+# =========================
+apps/cms/uploads/*
+!apps/cms/uploads/.gitkeep
+
+# =========================
 # Misc generated files
 # =========================
 tmp/
