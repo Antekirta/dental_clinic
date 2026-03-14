@@ -21,7 +21,7 @@ class Branch(Base):
     timezone: Mapped[str] = mapped_column(
         String(100),
         nullable=False,
-        server_default=text("'America/Sao_Paulo'"),
+        server_default=text("'Europe/London'"),
     )
     is_active: Mapped[bool] = mapped_column(nullable=False, server_default=text("TRUE"))
     created_at: Mapped[datetime] = mapped_column(

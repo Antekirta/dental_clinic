@@ -69,6 +69,18 @@ Apply migrations:
 alembic upgrade head
 ```
 
+Seed sample data:
+
+```bash
+python scripts/seed_db.py
+```
+
+Clear application data while keeping Alembic history:
+
+```bash
+python scripts/clear_db.py
+```
+
 ## Tests
 
 Run the test suite:

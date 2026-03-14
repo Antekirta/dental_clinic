@@ -29,7 +29,7 @@ def upgrade() -> None:
             "timezone",
             sa.String(length=100),
             nullable=False,
-            server_default=sa.text("'America/Sao_Paulo'"),
+            server_default=sa.text("'Europe/London'"),
         ),
         sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.true()),
         sa.Column(

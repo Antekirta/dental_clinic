@@ -5,7 +5,7 @@ CREATE TABLE branches (
     name VARCHAR(255) NOT NULL,
     address TEXT,
     phone VARCHAR(50),
-    timezone VARCHAR(100) NOT NULL DEFAULT 'America/Sao_Paulo',
+    timezone VARCHAR(100) NOT NULL DEFAULT 'Europe/London',
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
