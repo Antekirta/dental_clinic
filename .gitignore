@@ -99,6 +99,12 @@ docker-data/
 *.pid
 
 # =========================
+# n8n local runtime data
+# =========================
+apps/automations/.n8n/*
+!apps/automations/.n8n/.gitkeep
+
+# =========================
 # Misc generated files
 # =========================
 tmp/
