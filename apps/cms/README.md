@@ -22,13 +22,16 @@ PostgreSQL database used by the API.
    Use a real email format such as `admin@example.com`; Directus rejects
    placeholder addresses like `.local` during bootstrap.
 
-3. Start PostgreSQL and Directus:
+3. Make sure the host PostgreSQL service is running and reachable at
+   `host.docker.internal:5432` from Docker.
+
+4. Start Directus:
 
    ```powershell
-   docker compose up -d db directus
+   docker compose up -d directus
    ```
 
-4. Open Directus at [http://localhost:8055](http://localhost:8055).
+5. Open Directus at [http://localhost:8055](http://localhost:8055).
 
 On first start, Directus will create its own `directus_*` system tables in the
 `dental_clinic` database. Your existing clinic tables remain available in the
@@ -36,7 +39,8 @@ same database and can be registered in Directus as SQL collections.
 
 ## Notes
 
-- The API currently connects to PostgreSQL on `localhost:5434`, while the
-  Directus container connects to the Compose service host `db:5432`.
+- The API connects to PostgreSQL on `localhost:5432`.
+- The Directus container connects to the host PostgreSQL instance through
+  `host.docker.internal:5432`.
 - Uploaded files are stored in `apps/cms/uploads`.
 - Add custom hooks, interfaces, or endpoints under `apps/cms/extensions`.

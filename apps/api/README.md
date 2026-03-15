@@ -20,22 +20,16 @@ pip install -e .[dev]
 
 Recommended workflow:
 
-- run PostgreSQL in Docker
+- run PostgreSQL as a local system service
 - run the FastAPI app locally with auto-reload
 
-If you run the API locally, update `.env` so the database host points to `localhost` instead of the Docker service name:
+If you run the API locally, point `.env` at your local PostgreSQL instance:
 
 ```env
 DATABASE_URL=postgresql+psycopg2://postgres:postgres@localhost:5432/dental_clinic
 ```
 
-Start PostgreSQL only:
-
-```bash
-docker compose up db -d
-```
-
-Start the API with auto-reload:
+Make sure PostgreSQL is running, then start the API with auto-reload:
 
 ```bash
 uvicorn app.main:app --reload
@@ -45,15 +39,16 @@ The health check will be available at `http://localhost:8000/health`.
 
 ## Run everything with Docker Compose
 
-If you want the API and PostgreSQL to run in containers together, keep the default `.env.example` database host (`db`) and run:
+`docker-compose.yml` now contains only supporting services. They connect to the
+host machine PostgreSQL instance through `host.docker.internal`.
+
+To start the supporting services:
 
 ```bash
-docker compose up --build
+docker compose up -d
 ```
 
-This starts:
-
-- `db` on port `5432`
+This starts `Directus` and `n8n`.
 
 ## Alembic migrations
 

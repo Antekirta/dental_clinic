@@ -1,33 +1,16 @@
 services:
-  db:
-    image: postgres:16
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB:-dental_clinic}
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-    ports:
-      - "5434:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-dental_clinic}"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-
   directus:
     image: directus/directus:11.8.0
     restart: unless-stopped
-    depends_on:
-      db:
-        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "8055:8055"
     environment:
       KEY: ${DIRECTUS_KEY}
       SECRET: ${DIRECTUS_SECRET}
       DB_CLIENT: ${DIRECTUS_DB_CLIENT:-pg}
-      DB_HOST: ${DIRECTUS_DB_HOST:-db}
+      DB_HOST: ${DIRECTUS_DB_HOST:-host.docker.internal}
       DB_PORT: ${DIRECTUS_DB_PORT:-5432}
       DB_DATABASE: ${DIRECTUS_DB_DATABASE:-${POSTGRES_DB:-dental_clinic}}
       DB_USER: ${DIRECTUS_DB_USER:-${POSTGRES_USER:-postgres}}
@@ -57,6 +40,3 @@ services:
     volumes:
       - ./apps/automations/.n8n:/home/node/.n8n
       - ./apps/automations/files:/files
-
-volumes:
-  postgres_data:
