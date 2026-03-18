@@ -1,7 +1,8 @@
 #!/usr/bin/env sh
 set -eu
 
-ENV_FILE="${ENV_FILE:-../.env.prod}"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ENV_FILE="${ENV_FILE:-$SCRIPT_DIR/../.env.prod}"
 
 log() {
   printf '%s\n' "$*"
