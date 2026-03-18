@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 set -eu
 
-ENV_FILE="${ENV_FILE:-./env.prod}"
+ENV_FILE="${ENV_FILE:-../.env.prod}"
 
 log() {
   printf '%s\n' "$*"
