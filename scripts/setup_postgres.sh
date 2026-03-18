@@ -36,8 +36,8 @@ load_env_file() {
 
 validate_required_vars() {
   : "${POSTGRES_DB:?POSTGRES_DB is required in $ENV_FILE}"
-  : "${POSTGRES_APP_USER:?POSTGRES_APP_USER is required in $ENV_FILE}"
-  : "${POSTGRES_APP_PASSWORD:?POSTGRES_APP_PASSWORD is required in $ENV_FILE}"
+  : "${POSTGRES_USER:?POSTGRES_USER is required in $ENV_FILE}"
+  : "${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required in $ENV_FILE}"
 }
 
 validate_identifier() {
@@ -60,17 +60,17 @@ ensure_psql_exists() {
 }
 
 ensure_role() {
-  log "Ensuring PostgreSQL role exists: ${POSTGRES_APP_USER}"
+  log "Ensuring PostgreSQL role exists: ${POSTGRES_USER}"
 
-  role_exists="$(psql_super -tAc "SELECT 1 FROM pg_roles WHERE rolname='${POSTGRES_APP_USER}'" | tr -d '[:space:]')"
-  escaped_password="$(escape_sql_literal "$POSTGRES_APP_PASSWORD")"
+  role_exists="$(psql_super -tAc "SELECT 1 FROM pg_roles WHERE rolname='${POSTGRES_USER}'" | tr -d '[:space:]')"
+  escaped_password="$(escape_sql_literal "$POSTGRES_PASSWORD")"
 
   if [ "$role_exists" = "1" ]; then
     log "Role exists, updating password"
-    psql_super -c "ALTER ROLE ${POSTGRES_APP_USER} WITH LOGIN PASSWORD '${escaped_password}';"
+    psql_super -c "ALTER ROLE ${POSTGRES_USER} WITH LOGIN PASSWORD '${escaped_password}';"
   else
     log "Creating role"
-    psql_super -c "CREATE ROLE ${POSTGRES_APP_USER} WITH LOGIN PASSWORD '${escaped_password}';"
+    psql_super -c "CREATE ROLE ${POSTGRES_USER} WITH LOGIN PASSWORD '${escaped_password}';"
   fi
 }
 
@@ -81,10 +81,10 @@ ensure_database() {
 
   if [ "$db_exists" = "1" ]; then
     log "Database exists, ensuring owner"
-    psql_super -c "ALTER DATABASE ${POSTGRES_DB} OWNER TO ${POSTGRES_APP_USER};"
+    psql_super -c "ALTER DATABASE ${POSTGRES_DB} OWNER TO ${POSTGRES_USER};"
   else
     log "Creating database"
-    psql_super -c "CREATE DATABASE ${POSTGRES_DB} OWNER ${POSTGRES_APP_USER};"
+    psql_super -c "CREATE DATABASE ${POSTGRES_DB} OWNER ${POSTGRES_USER};"
   fi
 }
 
@@ -94,18 +94,18 @@ print_result() {
   log ""
   log "Done."
   log "Database: ${POSTGRES_DB}"
-  log "PostgreSQL user: ${POSTGRES_APP_USER}"
+  log "PostgreSQL user: ${POSTGRES_USER}"
   log "Port: ${postgres_port}"
   log ""
   log "DATABASE_URL:"
-  log "postgresql+psycopg2://${POSTGRES_APP_USER}:${POSTGRES_APP_PASSWORD}@localhost:${postgres_port}/${POSTGRES_DB}"
+  log "postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@localhost:${postgres_port}/${POSTGRES_DB}"
 }
 
 main() {
   load_env_file
   validate_required_vars
   validate_identifier "$POSTGRES_DB" "POSTGRES_DB"
-  validate_identifier "$POSTGRES_APP_USER" "POSTGRES_APP_USER"
+  validate_identifier "$POSTGRES_USER" "POSTGRES_USER"
   ensure_psql_exists
   ensure_role
   ensure_database
