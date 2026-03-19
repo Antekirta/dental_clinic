@@ -1,0 +1,13 @@
+{
+	email {$LETSENCRYPT_EMAIL}
+}
+
+cms.dental-clinic.kiremma.dev {
+	encode zstd gzip
+	reverse_proxy directus:8055
+}
+
+n8n.dental-clinic.kiremma.dev {
+	encode zstd gzip
+	reverse_proxy n8n:5678
+}

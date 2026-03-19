@@ -1,0 +1,79 @@
+services:
+  caddy:
+    image: caddy:2.8-alpine
+    restart: unless-stopped
+    depends_on:
+      - directus
+      - n8n
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL:?set LETSENCRYPT_EMAIL}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - edge
+
+  directus:
+    image: directus/directus:${DIRECTUS_IMAGE_TAG:-11.8.0}
+    restart: unless-stopped
+    expose:
+      - "8055"
+    environment:
+      KEY: ${DIRECTUS_KEY:?set DIRECTUS_KEY}
+      SECRET: ${DIRECTUS_SECRET:?set DIRECTUS_SECRET}
+      DB_CLIENT: ${DIRECTUS_DB_CLIENT:-pg}
+      DB_HOST: ${DIRECTUS_DB_HOST:?set DIRECTUS_DB_HOST}
+      DB_PORT: ${DIRECTUS_DB_PORT:-5432}
+      DB_DATABASE: ${DIRECTUS_DB_DATABASE:?set DIRECTUS_DB_DATABASE}
+      DB_USER: ${DIRECTUS_DB_USER:?set DIRECTUS_DB_USER}
+      DB_PASSWORD: ${DIRECTUS_DB_PASSWORD:?set DIRECTUS_DB_PASSWORD}
+      ADMIN_EMAIL: ${DIRECTUS_ADMIN_EMAIL:?set DIRECTUS_ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${DIRECTUS_ADMIN_PASSWORD:?set DIRECTUS_ADMIN_PASSWORD}
+      PUBLIC_URL: ${DIRECTUS_PUBLIC_URL:?set DIRECTUS_PUBLIC_URL}
+      WEBSOCKETS_ENABLED: ${DIRECTUS_WEBSOCKETS_ENABLED:-true}
+      CORS_ENABLED: ${DIRECTUS_CORS_ENABLED:-true}
+      CORS_ORIGIN: ${DIRECTUS_CORS_ORIGIN:?set DIRECTUS_CORS_ORIGIN}
+    volumes:
+      - ./apps/cms/uploads:/directus/uploads
+      - ./apps/cms/extensions:/directus/extensions
+    networks:
+      - edge
+
+  n8n:
+    image: n8nio/n8n:1.82.1
+    restart: unless-stopped
+    expose:
+      - "5678"
+    environment:
+      N8N_HOST: ${N8N_HOST:?set N8N_HOST}
+      N8N_PORT: 5678
+      N8N_PROTOCOL: ${N8N_PROTOCOL:-https}
+      N8N_EDITOR_BASE_URL: ${N8N_EDITOR_BASE_URL:?set N8N_EDITOR_BASE_URL}
+      WEBHOOK_URL: ${N8N_WEBHOOK_URL:?set N8N_WEBHOOK_URL}
+      GENERIC_TIMEZONE: ${N8N_TIMEZONE:-America/Sao_Paulo}
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: ${N8N_DB_HOST:?set N8N_DB_HOST}
+      DB_POSTGRESDB_PORT: ${N8N_DB_PORT:-5432}
+      DB_POSTGRESDB_DATABASE: ${N8N_DB_DATABASE:?set N8N_DB_DATABASE}
+      DB_POSTGRESDB_USER: ${N8N_DB_USER:?set N8N_DB_USER}
+      DB_POSTGRESDB_PASSWORD: ${N8N_DB_PASSWORD:?set N8N_DB_PASSWORD}
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:?set N8N_ENCRYPTION_KEY}
+      N8N_SECURE_COOKIE: "true"
+      N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS: "true"
+    volumes:
+      - ./apps/automations/.n8n:/home/node/.n8n
+      - ./apps/automations/files:/files
+    networks:
+      - edge
+
+volumes:
+  caddy_data:
+  caddy_config:
+
+networks:
+  edge:
+    driver: bridge
