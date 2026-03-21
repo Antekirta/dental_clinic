@@ -9,8 +9,6 @@ This repository now includes a standalone production stack for `Directus` and
 The production stack assumes:
 
 - PostgreSQL already exists outside Docker
-- `Directus` uses the clinic database
-- `n8n` uses a separate PostgreSQL database
 - only Caddy is exposed publicly on ports `80` and `443`
 
 ## 1. DNS
