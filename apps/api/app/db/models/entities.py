@@ -4,8 +4,8 @@ from datetime import date, datetime, time
 from decimal import Decimal
 
 from sqlalchemy import BigInteger, CheckConstraint, Date, ForeignKey, Identity, Index
-from sqlalchemy import Numeric, SmallInteger, String, Text, Time, text
-from sqlalchemy.dialects.postgresql import TIMESTAMP
+from sqlalchemy import Numeric, SmallInteger, String, Text, Time, UniqueConstraint, text
+from sqlalchemy.dialects.postgresql import JSONB, TIMESTAMP
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -18,6 +18,9 @@ class Branch(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     address: Mapped[str | None] = mapped_column(Text)
     phone: Mapped[str | None] = mapped_column(String(50))
+    parking_info: Mapped[str | None] = mapped_column(Text)
+    directions: Mapped[str | None] = mapped_column(Text)
+    map_url: Mapped[str | None] = mapped_column(String(500))
     timezone: Mapped[str] = mapped_column(
         String(100),
         nullable=False,
@@ -31,11 +34,16 @@ class Branch(Base):
     )
 
     staff_branches: Mapped[list[StaffBranch]] = relationship(back_populates="branch")
+    branch_hours: Mapped[list[BranchHour]] = relationship(back_populates="branch")
     staff_schedules: Mapped[list[StaffSchedule]] = relationship(back_populates="branch")
     schedule_exceptions: Mapped[list[StaffScheduleException]] = relationship(
         back_populates="branch"
     )
+    staff_services: Mapped[list[StaffService]] = relationship(back_populates="branch")
     appointments: Mapped[list[Appointment]] = relationship(back_populates="branch")
+    appointment_requests: Mapped[list[AppointmentRequest]] = relationship(
+        back_populates="branch"
+    )
 
 
 class Staff(Base):
@@ -66,13 +74,24 @@ class Staff(Base):
     schedule_exceptions: Mapped[list[StaffScheduleException]] = relationship(
         back_populates="staff"
     )
+    service_capabilities: Mapped[list[StaffService]] = relationship(
+        back_populates="staff"
+    )
     provided_appointments: Mapped[list[Appointment]] = relationship(
         back_populates="provider_staff",
         foreign_keys="Appointment.provider_staff_id",
     )
+    appointment_requests: Mapped[list[AppointmentRequest]] = relationship(
+        back_populates="requested_provider",
+        foreign_keys="AppointmentRequest.requested_provider_staff_id",
+    )
     operated_conversations: Mapped[list[Conversation]] = relationship(
         back_populates="operator",
         foreign_keys="Conversation.operator_id",
+    )
+    assigned_handoff_tasks: Mapped[list[HandoffTask]] = relationship(
+        back_populates="assigned_staff",
+        foreign_keys="HandoffTask.assigned_staff_id",
     )
 
 
@@ -98,6 +117,34 @@ class StaffBranch(Base):
 
     staff: Mapped[Staff] = relationship(back_populates="branches")
     branch: Mapped[Branch] = relationship(back_populates="staff_branches")
+
+
+class BranchHour(Base):
+    __tablename__ = "branch_hours"
+    __table_args__ = (
+        CheckConstraint("weekday BETWEEN 0 AND 6", name="ck_branch_hours_weekday"),
+        CheckConstraint("close_time > open_time", name="ck_branch_hours_time_range"),
+        Index("idx_branch_hours_branch_weekday", "branch_id", "weekday"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
+    branch_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("branches.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    weekday: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    open_time: Mapped[time] = mapped_column(Time, nullable=False)
+    close_time: Mapped[time] = mapped_column(Time, nullable=False)
+    is_active: Mapped[bool] = mapped_column(nullable=False, server_default=text("TRUE"))
+    notes: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        server_default=text("NOW()"),
+    )
+
+    branch: Mapped[Branch] = relationship(back_populates="branch_hours")
 
 
 class StaffSchedule(Base):
@@ -195,6 +242,9 @@ class Channel(Base):
 
     source_contacts: Mapped[list[Contact]] = relationship(back_populates="source_channel")
     appointments: Mapped[list[Appointment]] = relationship(back_populates="channel")
+    appointment_requests: Mapped[list[AppointmentRequest]] = relationship(
+        back_populates="channel"
+    )
     conversations: Mapped[list[Conversation]] = relationship(back_populates="channel")
 
 
@@ -238,7 +288,11 @@ class Contact(Base):
 
     source_channel: Mapped[Channel | None] = relationship(back_populates="source_contacts")
     appointments: Mapped[list[Appointment]] = relationship(back_populates="contact")
+    appointment_requests: Mapped[list[AppointmentRequest]] = relationship(
+        back_populates="contact"
+    )
     conversations: Mapped[list[Conversation]] = relationship(back_populates="contact")
+    handoff_tasks: Mapped[list[HandoffTask]] = relationship(back_populates="contact")
 
 
 class ServiceCategory(Base):
@@ -286,8 +340,150 @@ class Service(Base):
     )
 
     category: Mapped[ServiceCategory | None] = relationship(back_populates="services")
+    staff_capabilities: Mapped[list[StaffService]] = relationship(
+        back_populates="service"
+    )
+    appointment_requests: Mapped[list[AppointmentRequest]] = relationship(
+        back_populates="requested_service"
+    )
     appointment_services: Mapped[list[AppointmentService]] = relationship(
         back_populates="service"
+    )
+
+
+class StaffService(Base):
+    __tablename__ = "staff_services"
+    __table_args__ = (
+        UniqueConstraint(
+            "staff_id",
+            "service_id",
+            "branch_id",
+            name="uq_staff_services_staff_service_branch",
+        ),
+        Index("idx_staff_services_staff_id", "staff_id"),
+        Index("idx_staff_services_service_id", "service_id"),
+        Index("idx_staff_services_branch_id", "branch_id"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
+    staff_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("staff.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    service_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("services.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    branch_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("branches.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    is_active: Mapped[bool] = mapped_column(nullable=False, server_default=text("TRUE"))
+    notes: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        server_default=text("NOW()"),
+    )
+
+    staff: Mapped[Staff] = relationship(back_populates="service_capabilities")
+    service: Mapped[Service] = relationship(back_populates="staff_capabilities")
+    branch: Mapped[Branch] = relationship(back_populates="staff_services")
+
+
+class AppointmentRequest(Base):
+    __tablename__ = "appointment_requests"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('new', 'collecting_data', 'pending_admin', 'slot_offered', 'converted', 'cancelled')",
+            name="ck_appointment_requests_status",
+        ),
+        CheckConstraint(
+            "urgency IN ('normal', 'urgent')",
+            name="ck_appointment_requests_urgency",
+        ),
+        Index("idx_appointment_requests_contact_id", "contact_id"),
+        Index("idx_appointment_requests_conversation_id", "conversation_id"),
+        Index("idx_appointment_requests_status", "status"),
+        Index("idx_appointment_requests_preferred_date", "preferred_date"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
+    contact_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("contacts.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    conversation_id: Mapped[int | None] = mapped_column(
+        BigInteger,
+        ForeignKey("conversations.id", ondelete="SET NULL"),
+    )
+    branch_id: Mapped[int | None] = mapped_column(
+        BigInteger,
+        ForeignKey("branches.id", ondelete="SET NULL"),
+    )
+    requested_service_id: Mapped[int | None] = mapped_column(
+        BigInteger,
+        ForeignKey("services.id", ondelete="SET NULL"),
+    )
+    requested_provider_staff_id: Mapped[int | None] = mapped_column(
+        BigInteger,
+        ForeignKey("staff.id", ondelete="SET NULL"),
+    )
+    preferred_date: Mapped[date | None] = mapped_column(Date)
+    preferred_time: Mapped[time | None] = mapped_column(Time)
+    time_range_notes: Mapped[str | None] = mapped_column(String(100))
+    channel_id: Mapped[int | None] = mapped_column(
+        BigInteger,
+        ForeignKey("channels.id", ondelete="SET NULL"),
+    )
+    source_message_id: Mapped[int | None] = mapped_column(
+        BigInteger,
+        ForeignKey("messages.id", ondelete="SET NULL"),
+    )
+    status: Mapped[str] = mapped_column(
+        String(30),
+        nullable=False,
+        server_default=text("'new'"),
+    )
+    urgency: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        server_default=text("'normal'"),
+    )
+    notes: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        server_default=text("NOW()"),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        server_default=text("NOW()"),
+    )
+
+    contact: Mapped[Contact] = relationship(back_populates="appointment_requests")
+    conversation: Mapped[Conversation | None] = relationship(
+        back_populates="appointment_requests"
+    )
+    branch: Mapped[Branch | None] = relationship(back_populates="appointment_requests")
+    requested_service: Mapped[Service | None] = relationship(
+        back_populates="appointment_requests"
+    )
+    requested_provider: Mapped[Staff | None] = relationship(
+        back_populates="appointment_requests",
+        foreign_keys=[requested_provider_staff_id],
+    )
+    channel: Mapped[Channel | None] = relationship(back_populates="appointment_requests")
+    source_message: Mapped[Message | None] = relationship(
+        foreign_keys=[source_message_id]
+    )
+    handoff_tasks: Mapped[list[HandoffTask]] = relationship(
+        back_populates="appointment_request"
     )
 
 
@@ -416,11 +612,16 @@ class Conversation(Base):
             "handoff_status IN ('none', 'requested', 'assigned', 'in_progress', 'resolved')",
             name="ck_conversations_handoff_status",
         ),
+        CheckConstraint(
+            "priority IN ('low', 'normal', 'high', 'urgent')",
+            name="ck_conversations_priority",
+        ),
         Index("idx_conversations_contact_id", "contact_id"),
         Index("idx_conversations_channel_id", "channel_id"),
         Index("idx_conversations_status_id", "status_id"),
         Index("idx_conversations_operator_id", "operator_id"),
         Index("idx_conversations_external_chat_id", "external_chat_id"),
+        Index("idx_conversations_priority", "priority"),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
@@ -447,6 +648,15 @@ class Conversation(Base):
         nullable=False,
         server_default=text("'none'"),
     )
+    priority: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        server_default=text("'normal'"),
+    )
+    is_spam: Mapped[bool] = mapped_column(
+        nullable=False,
+        server_default=text("FALSE"),
+    )
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True),
         nullable=False,
@@ -465,6 +675,11 @@ class Conversation(Base):
         back_populates="operated_conversations",
         foreign_keys=[operator_id],
     )
+    appointment_requests: Mapped[list[AppointmentRequest]] = relationship(
+        back_populates="conversation"
+    )
+    intents: Mapped[list[ConversationIntent]] = relationship(back_populates="conversation")
+    handoff_tasks: Mapped[list[HandoffTask]] = relationship(back_populates="conversation")
     messages: Mapped[list[Message]] = relationship(back_populates="conversation")
 
 
@@ -514,3 +729,121 @@ class Message(Base):
     )
 
     conversation: Mapped[Conversation] = relationship(back_populates="messages")
+    intent_classifications: Mapped[list[ConversationIntent]] = relationship(
+        back_populates="message"
+    )
+
+
+class ConversationIntent(Base):
+    __tablename__ = "conversation_intents"
+    __table_args__ = (
+        CheckConstraint(
+            "route_type IN ('auto_reply', 'auto_reply_and_collect', 'handoff_admin', 'handoff_urgent', 'silent_ignore')",
+            name="ck_conversation_intents_route_type",
+        ),
+        CheckConstraint(
+            "confidence IS NULL OR (confidence >= 0 AND confidence <= 1)",
+            name="ck_conversation_intents_confidence",
+        ),
+        Index("idx_conversation_intents_conversation_id", "conversation_id"),
+        Index("idx_conversation_intents_message_id", "message_id"),
+        Index("idx_conversation_intents_intent_code", "intent_code"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
+    conversation_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("conversations.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    message_id: Mapped[int | None] = mapped_column(
+        BigInteger,
+        ForeignKey("messages.id", ondelete="SET NULL"),
+    )
+    intent_code: Mapped[str] = mapped_column(String(100), nullable=False)
+    route_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    confidence: Mapped[Decimal | None] = mapped_column(Numeric(4, 3))
+    is_primary: Mapped[bool] = mapped_column(nullable=False, server_default=text("TRUE"))
+    extracted_entities: Mapped[dict | None] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        server_default=text("NOW()"),
+    )
+
+    conversation: Mapped[Conversation] = relationship(back_populates="intents")
+    message: Mapped[Message | None] = relationship(back_populates="intent_classifications")
+
+
+class HandoffTask(Base):
+    __tablename__ = "handoff_tasks"
+    __table_args__ = (
+        CheckConstraint(
+            "task_type IN ('admin_followup', 'urgent_case', 'document_request', 'callback_request', 'complaint', 'post_visit', 'manual_booking', 'manual_reschedule', 'manual_cancel')",
+            name="ck_handoff_tasks_task_type",
+        ),
+        CheckConstraint(
+            "priority IN ('low', 'normal', 'high', 'urgent')",
+            name="ck_handoff_tasks_priority",
+        ),
+        CheckConstraint(
+            "status IN ('new', 'assigned', 'in_progress', 'completed', 'cancelled')",
+            name="ck_handoff_tasks_status",
+        ),
+        Index("idx_handoff_tasks_conversation_id", "conversation_id"),
+        Index("idx_handoff_tasks_assigned_staff_id", "assigned_staff_id"),
+        Index("idx_handoff_tasks_status", "status"),
+        Index("idx_handoff_tasks_priority", "priority"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
+    conversation_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("conversations.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    contact_id: Mapped[int | None] = mapped_column(
+        BigInteger,
+        ForeignKey("contacts.id", ondelete="SET NULL"),
+    )
+    appointment_request_id: Mapped[int | None] = mapped_column(
+        BigInteger,
+        ForeignKey("appointment_requests.id", ondelete="SET NULL"),
+    )
+    assigned_staff_id: Mapped[int | None] = mapped_column(
+        BigInteger,
+        ForeignKey("staff.id", ondelete="SET NULL"),
+    )
+    task_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    priority: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        server_default=text("'normal'"),
+    )
+    status: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        server_default=text("'new'"),
+    )
+    payload: Mapped[dict | None] = mapped_column(JSONB)
+    due_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        server_default=text("NOW()"),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        server_default=text("NOW()"),
+    )
+
+    conversation: Mapped[Conversation] = relationship(back_populates="handoff_tasks")
+    contact: Mapped[Contact | None] = relationship(back_populates="handoff_tasks")
+    appointment_request: Mapped[AppointmentRequest | None] = relationship(
+        back_populates="handoff_tasks"
+    )
+    assigned_staff: Mapped[Staff | None] = relationship(
+        back_populates="assigned_handoff_tasks",
+        foreign_keys=[assigned_staff_id],
+    )

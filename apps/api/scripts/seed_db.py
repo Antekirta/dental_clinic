@@ -5,13 +5,17 @@ from decimal import Decimal
 
 from app.db.models import (
     Appointment,
+    AppointmentRequest,
     AppointmentService,
     AppointmentStatus,
     Branch,
+    BranchHour,
     Channel,
     Contact,
     Conversation,
+    ConversationIntent,
     ConversationStatus,
+    HandoffTask,
     Message,
     Service,
     ServiceCategory,
@@ -19,6 +23,7 @@ from app.db.models import (
     StaffBranch,
     StaffSchedule,
     StaffScheduleException,
+    StaffService,
 )
 from app.db.session import SessionLocal
 
@@ -30,12 +35,13 @@ def get_by(session, model, **filters):
 def upsert_reference_rows(session) -> dict[str, dict[str, object]]:
     channels = {}
     for code, display_name, notes in [
-        ("instagram", "Instagram", "Inbound social channel"),
+        ("instagram", "Instagram Direct", "Inbound social channel"),
         ("telegram", "Telegram", "Messaging channel for patient support"),
         ("whatsapp", "WhatsApp", "Primary chat channel"),
         ("website", "Website", "Lead capture forms"),
         ("website_live_chat", "Website live chat", "Live chat widget on the clinic site"),
         ("phone", "Phone", "Direct call bookings"),
+        ("email", "Email", "Document and customer support requests"),
     ]:
         channel = get_by(session, Channel, code=code)
         if channel is None:
@@ -76,9 +82,18 @@ def upsert_reference_rows(session) -> dict[str, dict[str, object]]:
 
     conversation_statuses = {}
     for code, name, notes in [
-        ("open", "Open", "Conversation is active"),
-        ("waiting_human", "Waiting Human", "Awaiting operator pickup"),
-        ("closed", "Closed", "Conversation completed"),
+        ("new_incoming", "New incoming", "A new inbound message arrived"),
+        ("classified", "Classified", "Intent has been classified"),
+        ("waiting_for_patient_data", "Waiting for patient data", "Bot is collecting missing booking data"),
+        ("waiting_for_patient_reply", "Waiting for patient reply", "Bot is waiting for the patient to answer"),
+        ("waiting_for_admin", "Waiting for admin", "Human follow-up is required"),
+        ("urgent_handoff", "Urgent handoff", "Conversation needs immediate review"),
+        ("booking_request_created", "Booking request created", "Draft booking request was created"),
+        ("appointment_confirmed", "Appointment confirmed", "Patient confirmed the booked visit"),
+        ("appointment_cancel_requested", "Appointment cancel requested", "Patient asked to cancel a visit"),
+        ("appointment_reschedule_requested", "Appointment reschedule requested", "Patient asked to reschedule a visit"),
+        ("resolved", "Resolved", "Conversation has been completed"),
+        ("spam", "Spam", "Spam or irrelevant message"),
     ]:
         status = get_by(session, ConversationStatus, code=code)
         if status is None:
@@ -99,9 +114,23 @@ def upsert_reference_rows(session) -> dict[str, dict[str, object]]:
 
 def upsert_branches_and_staff(session) -> dict[str, object]:
     branches = {}
-    for name, address, phone in [
-        ("Marylebone Clinic", "221B Baker Street, Marylebone, London", "+44 20 7946 0100"),
-        ("Canary Wharf Clinic", "14 Bank Street, Canary Wharf, London", "+44 20 7946 0200"),
+    for name, address, phone, parking_info, directions, map_url in [
+        (
+            "Marylebone Clinic",
+            "221B Baker Street, Marylebone, London",
+            "+44 20 7946 0100",
+            "Paid parking available in the next block after 18:00.",
+            "Exit Baker Street station, walk 4 minutes toward Baker Street.",
+            "https://maps.example.com/marylebone-clinic",
+        ),
+        (
+            "Canary Wharf Clinic",
+            "14 Bank Street, Canary Wharf, London",
+            "+44 20 7946 0200",
+            "Underground parking in the building with patient discount validation.",
+            "Use Canary Wharf station exit B and follow the Bank Street signs.",
+            "https://maps.example.com/canary-wharf-clinic",
+        ),
     ]:
         branch = get_by(session, Branch, name=name)
         if branch is None:
@@ -109,9 +138,49 @@ def upsert_branches_and_staff(session) -> dict[str, object]:
             session.add(branch)
         branch.address = address
         branch.phone = phone
+        branch.parking_info = parking_info
+        branch.directions = directions
+        branch.map_url = map_url
         branch.timezone = "Europe/London"
         branch.is_active = True
         branches[name] = branch
+
+    session.flush()
+
+    for branch_name, weekday, open_time, close_time, notes in [
+        ("Marylebone Clinic", 0, time(9, 0), time(18, 0), "Standard weekday hours"),
+        ("Marylebone Clinic", 1, time(9, 0), time(18, 0), "Standard weekday hours"),
+        ("Marylebone Clinic", 2, time(9, 0), time(18, 0), "Standard weekday hours"),
+        ("Marylebone Clinic", 3, time(9, 0), time(18, 0), "Standard weekday hours"),
+        ("Marylebone Clinic", 4, time(9, 0), time(18, 0), "Standard weekday hours"),
+        ("Marylebone Clinic", 5, time(10, 0), time(16, 0), "Saturday by appointment"),
+        ("Canary Wharf Clinic", 0, time(8, 30), time(19, 0), "Extended weekday hours"),
+        ("Canary Wharf Clinic", 1, time(8, 30), time(19, 0), "Extended weekday hours"),
+        ("Canary Wharf Clinic", 2, time(8, 30), time(19, 0), "Extended weekday hours"),
+        ("Canary Wharf Clinic", 3, time(8, 30), time(19, 0), "Extended weekday hours"),
+        ("Canary Wharf Clinic", 4, time(8, 30), time(19, 0), "Extended weekday hours"),
+        ("Canary Wharf Clinic", 5, time(9, 0), time(14, 0), "Saturday by appointment"),
+    ]:
+        branch_hour = (
+            session.query(BranchHour)
+            .filter_by(
+                branch_id=branches[branch_name].id,
+                weekday=weekday,
+                open_time=open_time,
+                close_time=close_time,
+            )
+            .one_or_none()
+        )
+        if branch_hour is None:
+            branch_hour = BranchHour(
+                branch=branches[branch_name],
+                weekday=weekday,
+                open_time=open_time,
+                close_time=close_time,
+            )
+            session.add(branch_hour)
+        branch_hour.is_active = True
+        branch_hour.notes = notes
 
     staff_members = {}
     for full_name, role, specialty, phone, email, can_take_chats, can_take_appointments in [
@@ -131,6 +200,15 @@ def upsert_branches_and_staff(session) -> dict[str, object]:
             "+44 7700 900102",
             "james.patel@clinic.local",
             False,
+            True,
+        ),
+        (
+            "Sophia Turner",
+            "admin",
+            None,
+            "+44 7700 900150",
+            "sophia.turner@clinic.local",
+            True,
             True,
         ),
         (
@@ -170,6 +248,8 @@ def upsert_branches_and_staff(session) -> dict[str, object]:
     for staff_email, branch_name, is_primary in [
         ("emily.carter@clinic.local", "Marylebone Clinic", True),
         ("james.patel@clinic.local", "Canary Wharf Clinic", True),
+        ("sophia.turner@clinic.local", "Marylebone Clinic", True),
+        ("sophia.turner@clinic.local", "Canary Wharf Clinic", False),
         ("olivia.bennett@clinic.local", "Marylebone Clinic", True),
         ("olivia.bennett@clinic.local", "Canary Wharf Clinic", False),
         ("thomas.green@clinic.local", "Marylebone Clinic", True),
@@ -193,8 +273,13 @@ def upsert_branches_and_staff(session) -> dict[str, object]:
     for staff_email, branch_name, weekday, start_time, end_time in [
         ("emily.carter@clinic.local", "Marylebone Clinic", 1, time(9, 0), time(17, 0)),
         ("emily.carter@clinic.local", "Marylebone Clinic", 3, time(9, 0), time(17, 0)),
+        ("james.patel@clinic.local", "Canary Wharf Clinic", 0, time(10, 0), time(18, 0)),
         ("james.patel@clinic.local", "Canary Wharf Clinic", 2, time(10, 0), time(18, 0)),
         ("james.patel@clinic.local", "Canary Wharf Clinic", 4, time(10, 0), time(18, 0)),
+        ("sophia.turner@clinic.local", "Marylebone Clinic", 0, time(8, 30), time(17, 30)),
+        ("sophia.turner@clinic.local", "Marylebone Clinic", 1, time(8, 30), time(17, 30)),
+        ("olivia.bennett@clinic.local", "Marylebone Clinic", 0, time(9, 0), time(18, 0)),
+        ("olivia.bennett@clinic.local", "Marylebone Clinic", 1, time(9, 0), time(18, 0)),
     ]:
         schedule = (
             session.query(StaffSchedule)
@@ -289,6 +374,60 @@ def upsert_services(session, service_categories: dict[str, ServiceCategory]) -> 
     return services
 
 
+def upsert_staff_services(
+    session,
+    branches: dict[str, Branch],
+    staff_members: dict[str, Staff],
+    services: dict[str, Service],
+) -> None:
+    for staff_email, service_name, branch_name, notes in [
+        (
+            "emily.carter@clinic.local",
+            "Orthodontic Evaluation",
+            "Marylebone Clinic",
+            "Primary orthodontic consultations",
+        ),
+        (
+            "emily.carter@clinic.local",
+            "Tooth Whitening",
+            "Marylebone Clinic",
+            "Cosmetic treatments by senior clinician",
+        ),
+        (
+            "james.patel@clinic.local",
+            "Initial Consultation",
+            "Canary Wharf Clinic",
+            "General intake and diagnosis",
+        ),
+        (
+            "james.patel@clinic.local",
+            "Dental Cleaning",
+            "Canary Wharf Clinic",
+            "Routine hygiene and maintenance",
+        ),
+    ]:
+        capability = (
+            session.query(StaffService)
+            .filter_by(
+                staff_id=staff_members[staff_email].id,
+                service_id=services[service_name].id,
+                branch_id=branches[branch_name].id,
+            )
+            .one_or_none()
+        )
+        if capability is None:
+            capability = StaffService(
+                staff=staff_members[staff_email],
+                service=services[service_name],
+                branch=branches[branch_name],
+            )
+            session.add(capability)
+        capability.is_active = True
+        capability.notes = notes
+
+    session.flush()
+
+
 def upsert_contacts_activity(
     session,
     channels: dict[str, Channel],
@@ -305,7 +444,7 @@ def upsert_contacts_activity(
             "Charlotte Hughes",
             "+44 7700 900401",
             date(1991, 5, 17),
-            "Interested in whitening and routine cleaning",
+            "Warm lead interested in Saturday cleaning appointment.",
             "instagram",
             "qualified",
         ),
@@ -314,9 +453,27 @@ def upsert_contacts_activity(
             "Oliver Reed",
             "+44 7700 900402",
             date(1987, 9, 2),
-            "Seeking orthodontic evaluation",
+            "Upcoming orthodontic evaluation confirmed.",
             "website",
             "booked",
+        ),
+        (
+            "amelia.stone@example.com",
+            "Amelia Stone",
+            "+44 7700 900403",
+            date(1990, 1, 28),
+            "Post-treatment follow-up requires clinician review.",
+            "whatsapp",
+            "patient",
+        ),
+        (
+            "noah.campbell@example.com",
+            "Noah Campbell",
+            "+44 7700 900404",
+            date(1984, 11, 3),
+            "Requested invoice copy via email.",
+            "email",
+            "patient",
         ),
     ]:
         contact = get_by(session, Contact, email=email)
@@ -337,26 +494,26 @@ def upsert_contacts_activity(
     appointments = {}
     for key, contact_email, staff_email, branch_name, start_at, end_at, status_code, channel_code, comment in [
         (
-            "charlotte_whitening",
-            "charlotte.hughes@example.com",
-            "emily.carter@clinic.local",
-            "Marylebone Clinic",
-            now + timedelta(days=2, hours=3),
-            now + timedelta(days=2, hours=3, minutes=45),
-            "confirmed",
-            "instagram",
-            "Booked after DM conversation",
-        ),
-        (
             "oliver_ortho",
             "oliver.reed@example.com",
+            "emily.carter@clinic.local",
+            "Marylebone Clinic",
+            now + timedelta(days=3, hours=4),
+            now + timedelta(days=3, hours=4, minutes=50),
+            "confirmed",
+            "website",
+            "Confirmed after web booking flow",
+        ),
+        (
+            "amelia_cleaning_completed",
+            "amelia.stone@example.com",
             "james.patel@clinic.local",
             "Canary Wharf Clinic",
-            now + timedelta(days=3, hours=5),
-            now + timedelta(days=3, hours=5, minutes=50),
-            "scheduled",
-            "website",
-            "Website lead follow-up",
+            now - timedelta(days=2, hours=2),
+            now - timedelta(days=2, hours=1),
+            "completed",
+            "whatsapp",
+            "Completed hygiene visit before follow-up chat",
         ),
     ]:
         appointment = (
@@ -381,8 +538,8 @@ def upsert_contacts_activity(
     session.flush()
 
     for appointment_key, service_name, quantity in [
-        ("charlotte_whitening", "Tooth Whitening", 1),
         ("oliver_ortho", "Orthodontic Evaluation", 1),
+        ("amelia_cleaning_completed", "Dental Cleaning", 1),
     ]:
         appointment_service = (
             session.query(AppointmentService)
@@ -402,61 +559,124 @@ def upsert_contacts_activity(
         appointment_service.price = services[service_name].base_price
 
     conversations = {}
-    for chat_id, contact_email, channel_code, status_code, operator_email, handoff_status in [
+    for chat_id, contact_email, channel_code, status_code, operator_email, handoff_status, priority, is_spam in [
         (
             "wa-charlotte-001",
             "charlotte.hughes@example.com",
             "whatsapp",
-            "open",
-            "olivia.bennett@clinic.local",
-            "resolved",
+            "booking_request_created",
+            "sophia.turner@clinic.local",
+            "assigned",
+            "normal",
+            False,
         ),
         (
             "web-oliver-001",
             "oliver.reed@example.com",
             "website",
-            "waiting_human",
-            "olivia.bennett@clinic.local",
+            "appointment_confirmed",
+            "sophia.turner@clinic.local",
+            "resolved",
+            "normal",
+            False,
+        ),
+        (
+            "wa-amelia-001",
+            "amelia.stone@example.com",
+            "whatsapp",
+            "urgent_handoff",
+            "sophia.turner@clinic.local",
+            "requested",
+            "urgent",
+            False,
+        ),
+        (
+            "email-noah-001",
+            "noah.campbell@example.com",
+            "email",
+            "waiting_for_admin",
+            "sophia.turner@clinic.local",
             "assigned",
+            "normal",
+            False,
+        ),
+        (
+            "wa-spam-001",
+            None,
+            "whatsapp",
+            "spam",
+            None,
+            "none",
+            "low",
+            True,
         ),
     ]:
         conversation = get_by(session, Conversation, external_chat_id=chat_id)
         if conversation is None:
             conversation = Conversation(external_chat_id=chat_id)
             session.add(conversation)
-        conversation.contact = contacts[contact_email]
+        conversation.contact = contacts.get(contact_email) if contact_email else None
         conversation.channel = channels[channel_code]
         conversation.status = conversation_statuses[status_code]
-        conversation.operator = staff_members[operator_email]
+        conversation.operator = (
+            staff_members[operator_email] if operator_email is not None else None
+        )
         conversation.handoff_status = handoff_status
+        conversation.priority = priority
+        conversation.is_spam = is_spam
         conversations[chat_id] = conversation
 
     session.flush()
 
+    messages = {}
     for chat_id, direction, sender_type, message_text, external_message_id, sent_at in [
         (
             "wa-charlotte-001",
             "inbound",
             "contact",
-            "Hi, I'd like to know more about whitening options.",
+            "Hi, I want dental cleaning this Saturday after 2pm. My name is Charlotte.",
             "msg-wa-001",
-            now - timedelta(hours=5),
+            now - timedelta(hours=6),
         ),
         (
             "wa-charlotte-001",
             "outbound",
-            "staff",
-            "We have an opening this week at Marylebone. Would Thursday work for you?",
+            "bot",
+            "Thanks, Charlotte. I have created your booking request and our administrator will confirm the slot.",
             "msg-wa-002",
-            now - timedelta(hours=4, minutes=50),
+            now - timedelta(hours=5, minutes=55),
         ),
         (
             "web-oliver-001",
             "inbound",
             "contact",
-            "I want to schedule an orthodontic evaluation.",
+            "Yes, I confirm the orthodontic appointment.",
             "msg-web-001",
-            now - timedelta(hours=3),
+            now - timedelta(hours=4),
+        ),
+        (
+            "wa-amelia-001",
+            "inbound",
+            "contact",
+            "After the extraction I have strong swelling and bleeding, please call me urgently.",
+            "msg-wa-003",
+            now - timedelta(hours=2),
+        ),
+        (
+            "email-noah-001",
+            "inbound",
+            "contact",
+            "Please send my invoice and treatment summary to my email.",
+            "msg-email-001",
+            now - timedelta(hours=1, minutes=30),
+        ),
+        (
+            "wa-spam-001",
+            "inbound",
+            "integration",
+            "Cheap followers for your clinic profile!",
+            "msg-wa-spam-001",
+            now - timedelta(minutes=40),
         ),
     ]:
         message = get_by(session, Message, external_message_id=external_message_id)
@@ -469,6 +689,168 @@ def upsert_contacts_activity(
         message.message_text = message_text
         message.message_type = "text"
         message.sent_at = sent_at
+        messages[external_message_id] = message
+
+    session.flush()
+
+    appointment_request = (
+        session.query(AppointmentRequest)
+        .filter_by(conversation_id=conversations["wa-charlotte-001"].id)
+        .one_or_none()
+    )
+    if appointment_request is None:
+        appointment_request = AppointmentRequest(
+            contact=contacts["charlotte.hughes@example.com"],
+            conversation=conversations["wa-charlotte-001"],
+        )
+        session.add(appointment_request)
+    appointment_request.branch = branches["Marylebone Clinic"]
+    appointment_request.requested_service = services["Dental Cleaning"]
+    appointment_request.requested_provider = None
+    appointment_request.preferred_date = date.today() + timedelta(days=(5 - date.today().weekday()) % 7 or 7)
+    appointment_request.preferred_time = time(14, 0)
+    appointment_request.time_range_notes = "after 14:00"
+    appointment_request.channel = channels["whatsapp"]
+    appointment_request.source_message = messages["msg-wa-001"]
+    appointment_request.status = "pending_admin"
+    appointment_request.urgency = "normal"
+    appointment_request.notes = "Requested Saturday cleaning from WhatsApp chat."
+
+    session.flush()
+
+    for chat_id, message_id, intent_code, route_type, confidence, extracted_entities in [
+        (
+            "wa-charlotte-001",
+            "msg-wa-001",
+            "appointment_request",
+            "auto_reply_and_collect",
+            Decimal("0.980"),
+            {
+                "name": "Charlotte Hughes",
+                "service": "Dental Cleaning",
+                "date_preference": "Saturday",
+                "time_preference": "after 14:00",
+                "phone_present": True,
+            },
+        ),
+        (
+            "web-oliver-001",
+            "msg-web-001",
+            "confirm_appointment",
+            "auto_reply",
+            Decimal("0.995"),
+            {"has_active_appointment": True},
+        ),
+        (
+            "wa-amelia-001",
+            "msg-wa-003",
+            "post_visit_followup",
+            "handoff_urgent",
+            Decimal("0.970"),
+            {"symptoms": ["swelling", "bleeding"], "needs_callback": True},
+        ),
+        (
+            "email-noah-001",
+            "msg-email-001",
+            "insurance_or_documents",
+            "handoff_admin",
+            Decimal("0.960"),
+            {"requested_materials": ["invoice", "treatment_summary"], "delivery_channel": "email"},
+        ),
+        (
+            "wa-spam-001",
+            "msg-wa-spam-001",
+            "non_relevant_message",
+            "silent_ignore",
+            Decimal("0.999"),
+            {"spam": True},
+        ),
+    ]:
+        intent = (
+            session.query(ConversationIntent)
+            .filter_by(
+                conversation_id=conversations[chat_id].id,
+                message_id=messages[message_id].id,
+                intent_code=intent_code,
+            )
+            .one_or_none()
+        )
+        if intent is None:
+            intent = ConversationIntent(
+                conversation=conversations[chat_id],
+                message=messages[message_id],
+                intent_code=intent_code,
+            )
+            session.add(intent)
+        intent.route_type = route_type
+        intent.confidence = confidence
+        intent.is_primary = True
+        intent.extracted_entities = extracted_entities
+
+    for conversation_key, task_type, priority, status, assigned_staff_email, payload, due_at, request in [
+        (
+            "wa-charlotte-001",
+            "manual_booking",
+            "normal",
+            "assigned",
+            "sophia.turner@clinic.local",
+            {
+                "service": "Dental Cleaning",
+                "preferred_date": "Saturday",
+                "preferred_time": "14:00",
+                "next_step": "Confirm exact slot with patient",
+            },
+            now + timedelta(hours=4),
+            appointment_request,
+        ),
+        (
+            "wa-amelia-001",
+            "urgent_case",
+            "urgent",
+            "new",
+            "sophia.turner@clinic.local",
+            {
+                "reason": "Post-treatment symptoms with swelling and bleeding",
+                "action": "Immediate callback and clinician review",
+            },
+            now + timedelta(minutes=15),
+            None,
+        ),
+        (
+            "email-noah-001",
+            "document_request",
+            "normal",
+            "assigned",
+            "sophia.turner@clinic.local",
+            {
+                "documents": ["invoice", "treatment_summary"],
+                "delivery_channel": "email",
+            },
+            now + timedelta(hours=8),
+            None,
+        ),
+    ]:
+        task = (
+            session.query(HandoffTask)
+            .filter_by(
+                conversation_id=conversations[conversation_key].id,
+                task_type=task_type,
+            )
+            .one_or_none()
+        )
+        if task is None:
+            task = HandoffTask(
+                conversation=conversations[conversation_key],
+                task_type=task_type,
+            )
+            session.add(task)
+        task.contact = conversations[conversation_key].contact
+        task.appointment_request = request
+        task.assigned_staff = staff_members[assigned_staff_email]
+        task.priority = priority
+        task.status = status
+        task.payload = payload
+        task.due_at = due_at
 
 
 def main() -> None:
@@ -477,6 +859,12 @@ def main() -> None:
         reference_rows = upsert_reference_rows(session)
         clinic_rows = upsert_branches_and_staff(session)
         services = upsert_services(session, reference_rows["service_categories"])
+        upsert_staff_services(
+            session,
+            branches=clinic_rows["branches"],
+            staff_members=clinic_rows["staff_members"],
+            services=services,
+        )
         upsert_contacts_activity(
             session,
             channels=reference_rows["channels"],
