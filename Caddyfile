@@ -7,6 +7,11 @@ cms.dental-clinic.kiremma.dev {
 	reverse_proxy directus:8055
 }
 
+api.dental-clinic.kiremma.dev {
+	encode zstd gzip
+	reverse_proxy 172.30.0.1:8000
+}
+
 n8n.dental-clinic.kiremma.dev {
 	encode zstd gzip
 	reverse_proxy n8n:5678

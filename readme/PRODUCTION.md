@@ -3,6 +3,7 @@
 This repository uses a host PostgreSQL instance plus a production-only Docker
 stack for:
 
+- `FastAPI`
 - `Directus`
 - `n8n`
 - `Caddy`
@@ -16,15 +17,18 @@ Files involved:
 Production assumptions:
 
 - PostgreSQL runs on the VPS host, outside Docker
+- FastAPI runs on the VPS host through `systemd`
 - only Caddy is exposed publicly on `80` and `443`
 - the production Docker network is fixed to `172.30.0.0/24`
 - containers reach the host PostgreSQL through the Docker bridge gateway `172.30.0.1`
+- the Caddy container reaches FastAPI on the host through `172.30.0.1:8000`
 - `n8n` uses its built-in SQLite database persisted on the host
 
 ## 1. DNS
 
 Create two DNS records pointing at the droplet:
 
+- `api.dental-clinic.kiremma.dev`
 - `cms.dental-clinic.kiremma.dev`
 - `n8n.dental-clinic.kiremma.dev`
 
@@ -44,6 +48,12 @@ POSTGRES_USER=deploy
 POSTGRES_PASSWORD=replace_me
 
 LETSENCRYPT_EMAIL=ops@your-domain.com
+
+APP_NAME=Dental Clinic API
+APP_ENV=production
+APP_DEBUG=false
+APP_HOST=0.0.0.0
+APP_PORT=8000
 
 DIRECTUS_IMAGE_TAG=11.8.0
 
@@ -73,6 +83,7 @@ N8N_ENCRYPTION_KEY=replace_with_a_long_random_value
 Notes:
 
 - `DIRECTUS_DB_HOST` must stay `172.30.0.1` for this production topology.
+- `APP_HOST=0.0.0.0` is intentional. UFW restricts access so only the Docker subnet can reach `:8000`.
 - Do not use `host.docker.internal` in production.
 - Do not use ad-hoc VPS private IPs such as `10.x.x.x` in production docs or env files.
 - `n8n` is pinned in `docker-compose.prod.yml` and uses its persisted SQLite data under `apps/automations/.n8n`.
@@ -119,7 +130,32 @@ sudo chown -R 1000:1000 apps/cms/uploads apps/cms/extensions apps/automations/.n
 sudo chmod -R u+rwX,go-rwx apps/cms/uploads apps/cms/extensions apps/automations/.n8n apps/automations/files
 ```
 
-## 5. Start the production stack
+## 5. Install and enable the FastAPI service
+
+Copy the systemd unit template from the repository:
+
+```bash
+cd ~/apps/dental_clinic
+sudo cp deploy/systemd/dental-clinic-api.service /etc/systemd/system/dental-clinic-api.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now dental-clinic-api.service
+```
+
+Validate the API on the host:
+
+```bash
+systemctl status dental-clinic-api.service --no-pager
+curl -fsS http://127.0.0.1:8000/health
+```
+
+If `ufw` is enabled, allow the production Docker subnet to reach the host API port:
+
+```bash
+sudo ufw allow from 172.30.0.0/24 to any port 8000 proto tcp
+sudo ufw reload
+```
+
+## 6. Start the production stack
 
 From the repository root:
 
@@ -128,7 +164,7 @@ docker compose --env-file .env.prod -f docker-compose.prod.yml pull
 docker compose --env-file .env.prod -f docker-compose.prod.yml up -d
 ```
 
-## 6. Validate the stack
+## 7. Validate the stack
 
 Check containers and logs:
 
@@ -136,6 +172,14 @@ Check containers and logs:
 docker compose --env-file .env.prod -f docker-compose.prod.yml ps
 docker compose --env-file .env.prod -f docker-compose.prod.yml logs --tail=100 directus
 docker compose --env-file .env.prod -f docker-compose.prod.yml logs --tail=100 n8n
+```
+
+Check the FastAPI service:
+
+```bash
+systemctl status dental-clinic-api.service --no-pager
+journalctl -u dental-clinic-api.service -n 100 --no-pager
+curl -fsS http://127.0.0.1:8000/health
 ```
 
 Smoke-test PostgreSQL from the production Docker network:
@@ -153,7 +197,21 @@ Smoke-test Directus through the internal network:
 docker compose --env-file .env.prod -f docker-compose.prod.yml exec caddy sh -lc "wget -S -O- http://directus:8055/server/health || true"
 ```
 
-## 7. Firewall
+Smoke-test FastAPI through the internal network:
+
+```bash
+docker compose --env-file .env.prod -f docker-compose.prod.yml exec caddy sh -lc "wget -S -O- http://172.30.0.1:8000/health || true"
+```
+
+Public checks:
+
+```bash
+curl -fsS https://api.dental-clinic.kiremma.dev/health
+curl -I https://cms.dental-clinic.kiremma.dev
+curl -I https://n8n.dental-clinic.kiremma.dev
+```
+
+## 8. Firewall
 
 Allow inbound traffic only for:
 
@@ -162,7 +220,12 @@ Allow inbound traffic only for:
 
 Do not expose `8055`, `5678`, or `5432` publicly.
 
-## 8. Persistence
+Internal-only host ports reachable from the Docker subnet:
+
+- `5432/tcp` for PostgreSQL
+- `8000/tcp` for FastAPI
+
+## 9. Persistence
 
 These paths remain persisted on the host:
 
@@ -171,8 +234,9 @@ These paths remain persisted on the host:
 - `apps/automations/.n8n`
 - `apps/automations/files`
 
-## 9. Recommended hardening
+## 10. Recommended hardening
 
 - Restrict access to the `n8n` editor with Cloudflare Access, VPN, or IP allowlist.
+- Keep the FastAPI service bound to a host port that is reachable only from the Docker subnet.
 - Rotate any secrets that were previously committed to local env files.
 - Back up the PostgreSQL database and the persisted `uploads` / `n8n` directories.

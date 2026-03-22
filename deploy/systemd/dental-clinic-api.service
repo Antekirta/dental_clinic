@@ -1,0 +1,19 @@
+[Unit]
+Description=Dental Clinic FastAPI API
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=deploy
+Group=deploy
+WorkingDirectory=/home/deploy/apps/dental_clinic/apps/api
+Environment=ENV_FILE=/home/deploy/apps/dental_clinic/.env.prod
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/bin/sh /home/deploy/apps/dental_clinic/scripts/run_api_prod.sh
+Restart=always
+RestartSec=3
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target
