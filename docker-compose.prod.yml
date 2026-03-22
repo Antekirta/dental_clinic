@@ -20,8 +20,6 @@ services:
   directus:
     image: directus/directus:${DIRECTUS_IMAGE_TAG:-11.8.0}
     restart: unless-stopped
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     expose:
       - "8055"
     environment:
@@ -73,3 +71,7 @@ volumes:
 networks:
   edge:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24
+          gateway: 172.30.0.1
