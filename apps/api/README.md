@@ -39,21 +39,21 @@ The health check will be available at `http://localhost:8000/health`.
 
 ## Production
 
-The production deployment runs the API on the VPS host through `systemd`, not
-through Docker. `Caddy` proxies the public domain
-`https://api.dental-clinic.kiremma.dev` to the host service on `:8000`.
+The production deployment runs the API in Docker. `Caddy` proxies the public
+domain `https://api.dental-clinic.kiremma.dev` to the internal `api:8000`
+service in `docker-compose.prod.yml`.
 
 Expected production flow:
 
 - host PostgreSQL runs on the VPS
-- the API reads environment variables from the repository root `.env.prod`
-- `uvicorn` is started by a systemd unit
-- `Caddy` reverse proxies `api.dental-clinic.kiremma.dev` to `172.30.0.1:8000`
+- the API container reads environment variables passed from `docker-compose.prod.yml`
+- the API container connects to host PostgreSQL through `172.30.0.1:5432`
+- `Caddy` reverse proxies `api.dental-clinic.kiremma.dev` to `api:8000`
 
 The health check will be available at:
 
 - `https://api.dental-clinic.kiremma.dev/health`
-- `http://127.0.0.1:8000/health` on the VPS
+- `http://api:8000/health` inside the production Docker network
 
 ## Run everything with Docker Compose
 

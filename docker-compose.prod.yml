@@ -3,6 +3,7 @@ services:
     image: caddy:2.8-alpine
     restart: unless-stopped
     depends_on:
+      - api
       - directus
       - n8n
     ports:
@@ -14,6 +15,23 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
+    networks:
+      - edge
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    expose:
+      - "8000"
+    environment:
+      APP_NAME: ${APP_NAME:-Dental Clinic API}
+      APP_ENV: ${APP_ENV:-production}
+      APP_DEBUG: ${APP_DEBUG:-false}
+      APP_HOST: ${APP_HOST:-0.0.0.0}
+      APP_PORT: ${APP_PORT:-8000}
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:?set POSTGRES_USER}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@172.30.0.1:${POSTGRES_PORT:-5432}/${POSTGRES_DB:?set POSTGRES_DB}
     networks:
       - edge
 

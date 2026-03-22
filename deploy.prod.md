@@ -96,32 +96,13 @@ sudo chown -R 1000:1000 apps/cms/uploads apps/cms/extensions apps/automations/.n
 sudo chmod -R u+rwX,go-rwx apps/cms/uploads apps/cms/extensions apps/automations/.n8n apps/automations/files
 ```
 
-### 5. Install and enable the FastAPI service
-On the server:
-
-```bash
-cd ~/apps/dental_clinic
-sudo cp deploy/systemd/dental-clinic-api.service /etc/systemd/system/dental-clinic-api.service
-sudo systemctl daemon-reload
-sudo systemctl enable --now dental-clinic-api.service
-sudo ufw allow from 172.30.0.0/24 to any port 8000 proto tcp
-sudo ufw reload
-```
-
-Check:
-
-```bash
-systemctl status dental-clinic-api.service --no-pager
-curl -fsS http://127.0.0.1:8000/health
-```
-
-### 6. Start Directus / n8n / Caddy
+### 5. Start API / Directus / n8n / Caddy
 On the server, from the repository root:
 
 ```bash
 cd ~/apps/dental_clinic
 docker compose --env-file .env.prod -f docker-compose.prod.yml pull
-docker compose --env-file .env.prod -f docker-compose.prod.yml up -d
+docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --build
 ```
 
 Smoke-test the database from the production Docker network:
@@ -137,14 +118,14 @@ Check:
 
 ```bash
 docker compose --env-file .env.prod -f docker-compose.prod.yml ps
+docker compose --env-file .env.prod -f docker-compose.prod.yml logs --tail=100 api
 docker compose --env-file .env.prod -f docker-compose.prod.yml logs --tail=100 directus
 docker compose --env-file .env.prod -f docker-compose.prod.yml logs --tail=100 n8n
-systemctl status dental-clinic-api.service --no-pager
 docker compose --env-file .env.prod -f docker-compose.prod.yml exec caddy sh -lc "wget -S -O- http://directus:8055/server/health || true"
-docker compose --env-file .env.prod -f docker-compose.prod.yml exec caddy sh -lc "wget -S -O- http://172.30.0.1:8000/health || true"
+docker compose --env-file .env.prod -f docker-compose.prod.yml exec caddy sh -lc "wget -S -O- http://api:8000/health || true"
 ```
 
-### 7. Cloudflare Pages
+### 6. Cloudflare Pages
 On the local machine:
 
 ```bash
@@ -157,7 +138,7 @@ In Cloudflare Pages, one time:
 
 - add custom domain `dental-clinic.kiremma.dev`
 
-### 8. Directus token for Astro
+### 7. Directus token for Astro
 One time:
 
 - open `https://cms.dental-clinic.kiremma.dev`
@@ -192,7 +173,8 @@ pip install -e .
 If backend code changed:
 
 ```bash
-sudo systemctl restart dental-clinic-api.service
+cd ~/apps/dental_clinic
+docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --build api
 ```
 
 If migrations changed:
@@ -218,17 +200,16 @@ Refresh the production containers:
 ```bash
 cd ~/apps/dental_clinic
 docker compose --env-file .env.prod -f docker-compose.prod.yml pull
-docker compose --env-file .env.prod -f docker-compose.prod.yml up -d
+docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --build
 ```
 
 Check:
 
 ```bash
 docker compose --env-file .env.prod -f docker-compose.prod.yml ps
+docker compose --env-file .env.prod -f docker-compose.prod.yml logs --tail=100 api
 docker compose --env-file .env.prod -f docker-compose.prod.yml logs --tail=100 directus
 docker compose --env-file .env.prod -f docker-compose.prod.yml logs --tail=100 n8n
-systemctl status dental-clinic-api.service --no-pager
-journalctl -u dental-clinic-api.service -n 100 --no-pager
 ```
 
 ### If only frontend changed

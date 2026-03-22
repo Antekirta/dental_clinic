@@ -17,11 +17,11 @@ Files involved:
 Production assumptions:
 
 - PostgreSQL runs on the VPS host, outside Docker
-- FastAPI runs on the VPS host through `systemd`
+- FastAPI runs in Docker
 - only Caddy is exposed publicly on `80` and `443`
 - the production Docker network is fixed to `172.30.0.0/24`
 - containers reach the host PostgreSQL through the Docker bridge gateway `172.30.0.1`
-- the Caddy container reaches FastAPI on the host through `172.30.0.1:8000`
+- the API container reaches host PostgreSQL through `172.30.0.1:5432`
 - `n8n` uses its built-in SQLite database persisted on the host
 
 ## 1. DNS
@@ -83,7 +83,7 @@ N8N_ENCRYPTION_KEY=replace_with_a_long_random_value
 Notes:
 
 - `DIRECTUS_DB_HOST` must stay `172.30.0.1` for this production topology.
-- `APP_HOST=0.0.0.0` is intentional. UFW restricts access so only the Docker subnet can reach `:8000`.
+- `APP_HOST=0.0.0.0` is intentional inside the API container.
 - Do not use `host.docker.internal` in production.
 - Do not use ad-hoc VPS private IPs such as `10.x.x.x` in production docs or env files.
 - `n8n` is pinned in `docker-compose.prod.yml` and uses its persisted SQLite data under `apps/automations/.n8n`.
@@ -130,56 +130,24 @@ sudo chown -R 1000:1000 apps/cms/uploads apps/cms/extensions apps/automations/.n
 sudo chmod -R u+rwX,go-rwx apps/cms/uploads apps/cms/extensions apps/automations/.n8n apps/automations/files
 ```
 
-## 5. Install and enable the FastAPI service
-
-Copy the systemd unit template from the repository:
-
-```bash
-cd ~/apps/dental_clinic
-sudo cp deploy/systemd/dental-clinic-api.service /etc/systemd/system/dental-clinic-api.service
-sudo systemctl daemon-reload
-sudo systemctl enable --now dental-clinic-api.service
-```
-
-Validate the API on the host:
-
-```bash
-systemctl status dental-clinic-api.service --no-pager
-curl -fsS http://127.0.0.1:8000/health
-```
-
-If `ufw` is enabled, allow the production Docker subnet to reach the host API port:
-
-```bash
-sudo ufw allow from 172.30.0.0/24 to any port 8000 proto tcp
-sudo ufw reload
-```
-
-## 6. Start the production stack
+## 5. Start the production stack
 
 From the repository root:
 
 ```bash
 docker compose --env-file .env.prod -f docker-compose.prod.yml pull
-docker compose --env-file .env.prod -f docker-compose.prod.yml up -d
+docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --build
 ```
 
-## 7. Validate the stack
+## 6. Validate the stack
 
 Check containers and logs:
 
 ```bash
 docker compose --env-file .env.prod -f docker-compose.prod.yml ps
+docker compose --env-file .env.prod -f docker-compose.prod.yml logs --tail=100 api
 docker compose --env-file .env.prod -f docker-compose.prod.yml logs --tail=100 directus
 docker compose --env-file .env.prod -f docker-compose.prod.yml logs --tail=100 n8n
-```
-
-Check the FastAPI service:
-
-```bash
-systemctl status dental-clinic-api.service --no-pager
-journalctl -u dental-clinic-api.service -n 100 --no-pager
-curl -fsS http://127.0.0.1:8000/health
 ```
 
 Smoke-test PostgreSQL from the production Docker network:
@@ -200,7 +168,7 @@ docker compose --env-file .env.prod -f docker-compose.prod.yml exec caddy sh -lc
 Smoke-test FastAPI through the internal network:
 
 ```bash
-docker compose --env-file .env.prod -f docker-compose.prod.yml exec caddy sh -lc "wget -S -O- http://172.30.0.1:8000/health || true"
+docker compose --env-file .env.prod -f docker-compose.prod.yml exec caddy sh -lc "wget -S -O- http://api:8000/health || true"
 ```
 
 Public checks:
@@ -211,7 +179,7 @@ curl -I https://cms.dental-clinic.kiremma.dev
 curl -I https://n8n.dental-clinic.kiremma.dev
 ```
 
-## 8. Firewall
+## 7. Firewall
 
 Allow inbound traffic only for:
 
@@ -223,9 +191,8 @@ Do not expose `8055`, `5678`, or `5432` publicly.
 Internal-only host ports reachable from the Docker subnet:
 
 - `5432/tcp` for PostgreSQL
-- `8000/tcp` for FastAPI
 
-## 9. Persistence
+## 8. Persistence
 
 These paths remain persisted on the host:
 
@@ -234,9 +201,8 @@ These paths remain persisted on the host:
 - `apps/automations/.n8n`
 - `apps/automations/files`
 
-## 10. Recommended hardening
+## 9. Recommended hardening
 
 - Restrict access to the `n8n` editor with Cloudflare Access, VPN, or IP allowlist.
-- Keep the FastAPI service bound to a host port that is reachable only from the Docker subnet.
 - Rotate any secrets that were previously committed to local env files.
 - Back up the PostgreSQL database and the persisted `uploads` / `n8n` directories.

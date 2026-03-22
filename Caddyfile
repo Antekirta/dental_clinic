@@ -9,7 +9,7 @@ cms.dental-clinic.kiremma.dev {
 
 api.dental-clinic.kiremma.dev {
 	encode zstd gzip
-	reverse_proxy 172.30.0.1:8000
+	reverse_proxy api:8000
 }
 
 n8n.dental-clinic.kiremma.dev {
