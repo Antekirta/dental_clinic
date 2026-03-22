@@ -70,7 +70,33 @@ On the server:
 sudo apt install -y postgresql postgresql-client
 
 cd ~/apps/dental_clinic
-./scripts/setup_postgres.sh
+sudo sh ./scripts/setup_postgres.sh
+```
+
+If `ufw` is active, allow the production Docker subnet to reach PostgreSQL:
+
+```bash
+sudo ufw allow from 172.30.0.0/24 to any port 5432 proto tcp
+sudo ufw reload
+```
+
+### 4. Prepare persisted directories
+On the server:
+
+```bash
+cd ~/apps/dental_clinic
+sudo mkdir -p apps/cms/uploads apps/cms/extensions apps/automations/.n8n apps/automations/files
+sudo chown -R 1000:1000 apps/cms/uploads apps/cms/extensions apps/automations/.n8n apps/automations/files
+sudo chmod -R u+rwX,go-rwx apps/cms/uploads apps/cms/extensions apps/automations/.n8n apps/automations/files
+```
+
+### 5. Start Directus / n8n / Caddy
+On the server, from the repository root:
+
+```bash
+cd ~/apps/dental_clinic
+docker compose --env-file .env.prod -f docker-compose.prod.yml pull
+docker compose --env-file .env.prod -f docker-compose.prod.yml up -d
 ```
 
 Smoke-test the database from the production Docker network:
@@ -82,15 +108,6 @@ docker run --rm --network dental_clinic_edge \
   psql -h 172.30.0.1 -U deploy -d dental_clinic -p 5432 -c '\conninfo'
 ```
 
-### 4. Start Directus / n8n / Caddy
-On the server, from the repository root:
-
-```bash
-cd ~/apps/dental_clinic
-docker compose --env-file .env.prod -f docker-compose.prod.yml pull
-docker compose --env-file .env.prod -f docker-compose.prod.yml up -d
-```
-
 Check:
 
 ```bash
@@ -100,7 +117,7 @@ docker compose --env-file .env.prod -f docker-compose.prod.yml logs --tail=100 n
 docker compose --env-file .env.prod -f docker-compose.prod.yml exec caddy sh -lc "wget -S -O- http://directus:8055/server/health || true"
 ```
 
-### 5. Cloudflare Pages
+### 6. Cloudflare Pages
 On the local machine:
 
 ```bash
@@ -113,7 +130,7 @@ In Cloudflare Pages, one time:
 
 - add custom domain `dental-clinic.kiremma.dev`
 
-### 6. Directus token for Astro
+### 7. Directus token for Astro
 One time:
 
 - open `https://cms.dental-clinic.kiremma.dev`
@@ -160,7 +177,7 @@ If any `POSTGRES_*` values changed, rerun the host PostgreSQL setup:
 
 ```bash
 cd ~/apps/dental_clinic
-./scripts/setup_postgres.sh
+sudo sh ./scripts/setup_postgres.sh
 ```
 
 Refresh the production containers:

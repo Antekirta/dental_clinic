@@ -189,6 +189,8 @@ print_result() {
   log ""
   log "Directus DB host from production containers:"
   log "${POSTGRES_DOCKER_GATEWAY}"
+  log ""
+  log "If UFW is enabled, allow ${POSTGRES_DOCKER_SUBNET} to reach tcp/${postgres_port}."
 }
 
 main() {

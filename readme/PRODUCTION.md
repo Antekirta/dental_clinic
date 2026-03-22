@@ -87,7 +87,7 @@ sudo apt update
 sudo apt install -y postgresql postgresql-client
 
 cd ~/apps/dental_clinic
-./scripts/setup_postgres.sh
+sudo sh ./scripts/setup_postgres.sh
 ```
 
 The script:
@@ -98,7 +98,47 @@ The script:
 - adds a managed `pg_hba.conf` rule for `172.30.0.0/24`
 - restarts PostgreSQL when required
 
-Smoke-test the database from the production Docker network:
+If `ufw` is enabled on the VPS, allow the production Docker subnet to reach the
+host PostgreSQL port:
+
+```bash
+sudo ufw allow from 172.30.0.0/24 to any port 5432 proto tcp
+sudo ufw reload
+```
+
+## 4. Prepare persisted directories
+
+Create the bind-mounted directories before the first start so Docker does not
+create them with the wrong ownership, and make them writable for the container
+user (`uid=1000`):
+
+```bash
+cd ~/apps/dental_clinic
+sudo mkdir -p apps/cms/uploads apps/cms/extensions apps/automations/.n8n apps/automations/files
+sudo chown -R 1000:1000 apps/cms/uploads apps/cms/extensions apps/automations/.n8n apps/automations/files
+sudo chmod -R u+rwX,go-rwx apps/cms/uploads apps/cms/extensions apps/automations/.n8n apps/automations/files
+```
+
+## 5. Start the production stack
+
+From the repository root:
+
+```bash
+docker compose --env-file .env.prod -f docker-compose.prod.yml pull
+docker compose --env-file .env.prod -f docker-compose.prod.yml up -d
+```
+
+## 6. Validate the stack
+
+Check containers and logs:
+
+```bash
+docker compose --env-file .env.prod -f docker-compose.prod.yml ps
+docker compose --env-file .env.prod -f docker-compose.prod.yml logs --tail=100 directus
+docker compose --env-file .env.prod -f docker-compose.prod.yml logs --tail=100 n8n
+```
+
+Smoke-test PostgreSQL from the production Docker network:
 
 ```bash
 docker run --rm --network dental_clinic_edge \
@@ -107,31 +147,13 @@ docker run --rm --network dental_clinic_edge \
   psql -h 172.30.0.1 -U deploy -d dental_clinic -p 5432 -c '\conninfo'
 ```
 
-## 4. Start the production stack
-
-From the repository root:
+Smoke-test Directus through the internal network:
 
 ```bash
-docker compose --env-file .env.prod -f docker-compose.prod.yml up -d
-```
-
-To pull pinned images before restart:
-
-```bash
-docker compose --env-file .env.prod -f docker-compose.prod.yml pull
-docker compose --env-file .env.prod -f docker-compose.prod.yml up -d
-```
-
-Validate the containers:
-
-```bash
-docker compose --env-file .env.prod -f docker-compose.prod.yml ps
-docker compose --env-file .env.prod -f docker-compose.prod.yml logs --tail=100 directus
-docker compose --env-file .env.prod -f docker-compose.prod.yml logs --tail=100 n8n
 docker compose --env-file .env.prod -f docker-compose.prod.yml exec caddy sh -lc "wget -S -O- http://directus:8055/server/health || true"
 ```
 
-## 5. Firewall
+## 7. Firewall
 
 Allow inbound traffic only for:
 
@@ -140,7 +162,7 @@ Allow inbound traffic only for:
 
 Do not expose `8055`, `5678`, or `5432` publicly.
 
-## 6. Persistence
+## 8. Persistence
 
 These paths remain persisted on the host:
 
@@ -149,7 +171,7 @@ These paths remain persisted on the host:
 - `apps/automations/.n8n`
 - `apps/automations/files`
 
-## 7. Recommended hardening
+## 9. Recommended hardening
 
 - Restrict access to the `n8n` editor with Cloudflare Access, VPN, or IP allowlist.
 - Rotate any secrets that were previously committed to local env files.
