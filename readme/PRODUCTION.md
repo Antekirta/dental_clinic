@@ -30,11 +30,10 @@ Create two DNS records pointing at the droplet:
 
 ## 2. Server-side env file
 
-Do not use the repository `.env` files as the production source of truth.
-Create a dedicated env file on the server, for example:
+Use the repository root production env file on the server:
 
 ```text
-/etc/dental-clinic/directus-n8n.env
+~/apps/dental_clinic/.env.prod
 ```
 
 Required variables:
@@ -88,7 +87,7 @@ sudo apt update
 sudo apt install -y postgresql postgresql-client
 
 cd ~/apps/dental_clinic
-ENV_FILE=/etc/dental-clinic/directus-n8n.env ./scripts/setup_postgres.sh
+./scripts/setup_postgres.sh
 ```
 
 The script:
@@ -113,23 +112,23 @@ docker run --rm --network dental_clinic_edge \
 From the repository root:
 
 ```bash
-docker compose --env-file /etc/dental-clinic/directus-n8n.env -f docker-compose.prod.yml up -d
+docker compose --env-file .env.prod -f docker-compose.prod.yml up -d
 ```
 
 To pull pinned images before restart:
 
 ```bash
-docker compose --env-file /etc/dental-clinic/directus-n8n.env -f docker-compose.prod.yml pull
-docker compose --env-file /etc/dental-clinic/directus-n8n.env -f docker-compose.prod.yml up -d
+docker compose --env-file .env.prod -f docker-compose.prod.yml pull
+docker compose --env-file .env.prod -f docker-compose.prod.yml up -d
 ```
 
 Validate the containers:
 
 ```bash
-docker compose --env-file /etc/dental-clinic/directus-n8n.env -f docker-compose.prod.yml ps
-docker compose --env-file /etc/dental-clinic/directus-n8n.env -f docker-compose.prod.yml logs --tail=100 directus
-docker compose --env-file /etc/dental-clinic/directus-n8n.env -f docker-compose.prod.yml logs --tail=100 n8n
-docker compose --env-file /etc/dental-clinic/directus-n8n.env -f docker-compose.prod.yml exec caddy sh -lc "wget -S -O- http://directus:8055/server/health || true"
+docker compose --env-file .env.prod -f docker-compose.prod.yml ps
+docker compose --env-file .env.prod -f docker-compose.prod.yml logs --tail=100 directus
+docker compose --env-file .env.prod -f docker-compose.prod.yml logs --tail=100 n8n
+docker compose --env-file .env.prod -f docker-compose.prod.yml exec caddy sh -lc "wget -S -O- http://directus:8055/server/health || true"
 ```
 
 ## 5. Firewall
@@ -155,4 +154,3 @@ These paths remain persisted on the host:
 - Restrict access to the `n8n` editor with Cloudflare Access, VPN, or IP allowlist.
 - Rotate any secrets that were previously committed to local env files.
 - Back up the PostgreSQL database and the persisted `uploads` / `n8n` directories.
-- Keep production env files outside the repository.
