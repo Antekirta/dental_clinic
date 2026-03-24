@@ -125,6 +125,24 @@ CREATE TABLE contacts (
 );
 ```
 
+## contact_channel_identities
+```sql
+CREATE TABLE contact_channel_identities (
+    id BIGSERIAL PRIMARY KEY,
+    contact_id BIGINT NOT NULL REFERENCES contacts(id) ON DELETE CASCADE,
+    channel_id BIGINT NOT NULL REFERENCES channels(id) ON DELETE CASCADE,
+    external_id VARCHAR(255) NOT NULL,
+    username VARCHAR(255),
+    phone VARCHAR(50),
+    email VARCHAR(255),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT uq_contact_channel_identities_channel_external_id
+        UNIQUE (channel_id, external_id)
+);
+```
+
 ## service_categories
 ```sql
 CREATE TABLE service_categories (
@@ -249,6 +267,17 @@ ON staff_schedule_exceptions(exception_date);
 CREATE INDEX idx_contacts_phone ON contacts(phone);
 CREATE INDEX idx_contacts_email ON contacts(email);
 CREATE INDEX idx_contacts_lifecycle_stage ON contacts(lifecycle_stage);
+
+CREATE INDEX idx_contact_channel_identities_contact_id
+ON contact_channel_identities(contact_id);
+CREATE INDEX idx_contact_channel_identities_channel_id
+ON contact_channel_identities(channel_id);
+CREATE INDEX idx_contact_channel_identities_external_id
+ON contact_channel_identities(external_id);
+CREATE INDEX idx_contact_channel_identities_phone
+ON contact_channel_identities(phone);
+CREATE INDEX idx_contact_channel_identities_email
+ON contact_channel_identities(email);
 
 CREATE INDEX idx_services_category_id ON services(category_id);
 

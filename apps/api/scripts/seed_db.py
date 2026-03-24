@@ -12,6 +12,7 @@ from app.db.models import (
     BranchHour,
     Channel,
     Contact,
+    ContactChannelIdentity,
     Conversation,
     ConversationIntent,
     ConversationStatus,
@@ -489,6 +490,51 @@ def upsert_contacts_activity(
         contacts[email] = contact
 
     session.flush()
+
+    for contact_email, channel_code, external_id, username in [
+        (
+            "charlotte.hughes@example.com",
+            "instagram",
+            "ig-charlotte-hughes",
+            "charlotte_h",
+        ),
+        (
+            "oliver.reed@example.com",
+            "website",
+            "web-visitor-oliver-001",
+            None,
+        ),
+        (
+            "amelia.stone@example.com",
+            "whatsapp",
+            "wa-447700900403",
+            None,
+        ),
+        (
+            "noah.campbell@example.com",
+            "email",
+            "noah.campbell@example.com",
+            None,
+        ),
+    ]:
+        identity = (
+            session.query(ContactChannelIdentity)
+            .filter_by(
+                channel_id=channels[channel_code].id,
+                external_id=external_id,
+            )
+            .one_or_none()
+        )
+        if identity is None:
+            identity = ContactChannelIdentity(
+                channel=channels[channel_code],
+                external_id=external_id,
+            )
+            session.add(identity)
+        identity.contact = contacts[contact_email]
+        identity.username = username
+        identity.phone = contacts[contact_email].phone
+        identity.email = contacts[contact_email].email
 
     now = datetime.now(UTC).replace(second=0, microsecond=0)
     appointments = {}

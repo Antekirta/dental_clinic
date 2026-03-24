@@ -241,6 +241,9 @@ class Channel(Base):
     )
 
     source_contacts: Mapped[list[Contact]] = relationship(back_populates="source_channel")
+    contact_identities: Mapped[list[ContactChannelIdentity]] = relationship(
+        back_populates="channel"
+    )
     appointments: Mapped[list[Appointment]] = relationship(back_populates="channel")
     appointment_requests: Mapped[list[AppointmentRequest]] = relationship(
         back_populates="channel"
@@ -287,12 +290,60 @@ class Contact(Base):
     )
 
     source_channel: Mapped[Channel | None] = relationship(back_populates="source_contacts")
+    channel_identities: Mapped[list[ContactChannelIdentity]] = relationship(
+        back_populates="contact"
+    )
     appointments: Mapped[list[Appointment]] = relationship(back_populates="contact")
     appointment_requests: Mapped[list[AppointmentRequest]] = relationship(
         back_populates="contact"
     )
     conversations: Mapped[list[Conversation]] = relationship(back_populates="contact")
     handoff_tasks: Mapped[list[HandoffTask]] = relationship(back_populates="contact")
+
+
+class ContactChannelIdentity(Base):
+    __tablename__ = "contact_channel_identities"
+    __table_args__ = (
+        UniqueConstraint(
+            "channel_id",
+            "external_id",
+            name="uq_contact_channel_identities_channel_external_id",
+        ),
+        Index("idx_contact_channel_identities_contact_id", "contact_id"),
+        Index("idx_contact_channel_identities_channel_id", "channel_id"),
+        Index("idx_contact_channel_identities_external_id", "external_id"),
+        Index("idx_contact_channel_identities_phone", "phone"),
+        Index("idx_contact_channel_identities_email", "email"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
+    contact_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("contacts.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    channel_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("channels.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    external_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    username: Mapped[str | None] = mapped_column(String(255))
+    phone: Mapped[str | None] = mapped_column(String(50))
+    email: Mapped[str | None] = mapped_column(String(255))
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        server_default=text("NOW()"),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        server_default=text("NOW()"),
+    )
+
+    contact: Mapped[Contact] = relationship(back_populates="channel_identities")
+    channel: Mapped[Channel] = relationship(back_populates="contact_identities")
 
 
 class ServiceCategory(Base):
