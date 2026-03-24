@@ -1,0 +1,1 @@
+"""Appointment requests domain module."""
