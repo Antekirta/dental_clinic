@@ -3,12 +3,15 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
+from sqlalchemy.orm import Session
 
+from app.dependencies import get_db_session
 from app.modules.inbound_messages.adapters.telegram import (
     TelegramAdapterError,
     normalize_telegram_update,
 )
+from app.modules.inbound_messages.service import process_incoming_message
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +19,10 @@ router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 
 
 @router.post("/telegram", status_code=200)
-async def telegram_webhook(request: Request) -> dict[str, Any]:
+async def telegram_webhook(
+    request: Request,
+    session: Session = Depends(get_db_session),
+) -> dict[str, Any]:
     """
     Receive a Telegram Bot webhook update.
 
@@ -39,7 +45,14 @@ async def telegram_webhook(request: Request) -> dict[str, Any]:
         unified.message.normalized_text,
     )
 
-    # TODO: call process_incoming_message(unified, session)
-    # This is the next step — for now we just log and acknowledge.
+    try:
+        process_incoming_message(session, unified)
+    except Exception as exc:
+        logger.error(
+            "Error processing Telegram message from contact=%s: %s",
+            unified.contact.external_id,
+            exc,
+            exc_info=True,
+        )
 
     return {"ok": True}
