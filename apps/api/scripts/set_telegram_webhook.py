@@ -17,7 +17,7 @@ from pathlib import Path
 
 
 def _load_token() -> str:
-    env_path = Path(__file__).resolve().parents[2] / ".env"
+    env_path = Path(__file__).resolve().parents[3] / ".env"
     if not env_path.exists():
         print(f"ERROR: .env not found at {env_path}", file=sys.stderr)
         sys.exit(1)
