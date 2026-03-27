@@ -3,6 +3,22 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 
+class CreateContactFromChannelRequest(BaseModel):
+    """
+    Input for creating a brand-new contact + channel identity in one step.
+    Used by inbound_messages after resolve_contact() returns found=False.
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    channel_code: str = Field(min_length=1)
+    external_id: str = Field(min_length=1)
+    username: str | None = None
+    display_name: str | None = None  # stored as Contact.full_name
+    phone: str | None = None
+    email: str | None = None
+
+
 class ResolveChannelPayload(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
@@ -54,6 +70,6 @@ class ResolvedIdentityPayload(BaseModel):
 
 class ResolveContactResponse(BaseModel):
     found: bool
-    matched_by: Literal["external_id", "phone", "email"] | None = None
+    matched_by: Literal["external_id", "phone", "email", "created"] | None = None
     contact: ResolvedContactPayload | None = None
     identity: ResolvedIdentityPayload | None = None
