@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from datetime import UTC, datetime
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.db.models import Conversation, ConversationStatus
@@ -13,6 +13,10 @@ logger = logging.getLogger(__name__)
 
 class ConversationStatusNotFoundError(Exception):
     """Raised when a required conversation_status code is missing from the DB."""
+
+
+class ConversationNotFoundError(Exception):
+    """Raised when the requested conversation does not exist."""
 
 
 def get_or_create_conversation(
@@ -71,3 +75,23 @@ def get_or_create_conversation(
         channel_id,
     )
     return conversation
+
+
+def delete_conversation(session: Session, conversation_id: int) -> None:
+    """
+    Delete a conversation and all its related records.
+
+    Raises ConversationNotFoundError if the conversation does not exist.
+    The DB cascades handle messages, conversation_intents, and handoff_tasks.
+    appointment_requests.conversation_id is SET NULL by the DB.
+    """
+    conversation = session.scalar(
+        select(Conversation).where(Conversation.id == conversation_id)
+    )
+    if conversation is None:
+        raise ConversationNotFoundError(f"Conversation {conversation_id} not found.")
+
+    session.execute(delete(Conversation).where(Conversation.id == conversation_id))
+    session.commit()
+
+    logger.info("Deleted conversation id=%s", conversation_id)
