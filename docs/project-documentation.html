@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BrightSmile Dental Clinic — Техническая документация</title>
+<title>BrightSmile Dental Clinic — Technical Documentation</title>
 <style>
   :root {
     --primary: #1a56a0;
@@ -366,32 +366,32 @@
 <nav>
   <div class="nav-logo">
     <h1>🦷 BrightSmile</h1>
-    <p>Техническая документация</p>
+    <p>Technical Documentation</p>
   </div>
   <ul>
-    <li class="section-header">Обзор</li>
-    <li><a href="#overview">Описание проекта</a></li>
-    <li><a href="#architecture">Архитектура</a></li>
-    <li><a href="#stack">Технологический стек</a></li>
+    <li class="section-header">Overview</li>
+    <li><a href="#overview">Project Description</a></li>
+    <li><a href="#architecture">Architecture</a></li>
+    <li><a href="#stack">Tech Stack</a></li>
 
-    <li class="section-header">Интеграции</li>
+    <li class="section-header">Integrations</li>
     <li><a href="#telegram">Telegram Bot</a></li>
     <li><a href="#gemini">Gemini AI</a></li>
 
-    <li class="section-header">Классификация</li>
-    <li><a href="#intents">Все интенты (28)</a></li>
-    <li><a href="#routing">Логика маршрутизации</a></li>
+    <li class="section-header">Classification</li>
+    <li><a href="#intents">All Intents (28)</a></li>
+    <li><a href="#routing">Routing Logic</a></li>
 
-    <li class="section-header">Пользователи</li>
-    <li><a href="#scenarios">Пользовательские сценарии</a></li>
+    <li class="section-header">Users</li>
+    <li><a href="#scenarios">User Scenarios</a></li>
 
-    <li class="section-header">База данных</li>
-    <li><a href="#models">Модели данных</a></li>
-    <li><a href="#seed">Начальные данные</a></li>
+    <li class="section-header">Database</li>
+    <li><a href="#models">Data Models</a></li>
+    <li><a href="#seed">Seed Data</a></li>
 
     <li class="section-header">API</li>
-    <li><a href="#api">Эндпоинты</a></li>
-    <li><a href="#deploy">Деплой</a></li>
+    <li><a href="#api">Endpoints</a></li>
+    <li><a href="#deploy">Deployment</a></li>
   </ul>
 </nav>
 
@@ -400,7 +400,7 @@
 
   <div class="hero">
     <h1>🦷 BrightSmile Dental Clinic</h1>
-    <p>Платформа автоматической обработки входящих сообщений пациентов через Telegram с классификацией интентов на базе Google Gemini AI и умной маршрутизацией на администраторов.</p>
+    <p>A platform for automated processing of inbound patient messages via Telegram, with intent classification powered by Google Gemini AI and smart routing to human operators.</p>
     <div class="meta">
       <span><b>Python</b> 3.11</span>
       <span><b>FastAPI</b> + SQLAlchemy 2.0</span>
@@ -412,34 +412,34 @@
 
   <!-- ══════════════════════════════════════════════════ -->
   <section id="overview">
-    <h2>Описание проекта</h2>
+    <h2>Project Description</h2>
 
-    <p>BrightSmile — это backend-платформа для стоматологической клиники, которая автоматически принимает сообщения пациентов через Telegram, классифицирует их намерение с помощью Gemini AI, автоматически отвечает на типовые вопросы и эскалирует сложные запросы администраторам.</p>
+    <p>BrightSmile is a backend platform for a dental clinic that automatically receives patient messages via Telegram, classifies their intent using Gemini AI, auto-replies to common questions, and escalates complex requests to human administrators.</p>
 
     <div class="card-grid">
-      <div class="stat-card"><div class="num">28</div><div class="label">Интентов классификации</div></div>
-      <div class="stat-card"><div class="num">21</div><div class="label">Модель базы данных</div></div>
-      <div class="stat-card"><div class="num">120</div><div class="label">Автотестов</div></div>
-      <div class="stat-card"><div class="num">4</div><div class="label">Типа маршрутизации</div></div>
+      <div class="stat-card"><div class="num">28</div><div class="label">Classification Intents</div></div>
+      <div class="stat-card"><div class="num">21</div><div class="label">Database Models</div></div>
+      <div class="stat-card"><div class="num">120</div><div class="label">Automated Tests</div></div>
+      <div class="stat-card"><div class="num">4</div><div class="label">Routing Types</div></div>
     </div>
 
-    <h3>Что делает система</h3>
+    <h3>What the System Does</h3>
     <div class="flow">
-      <div class="flow-step"><span class="step-num">1</span> Пациент пишет сообщение в Telegram-бота клиники</div>
-      <div class="flow-step"><span class="step-num">2</span> Webhook доставляет обновление на сервер FastAPI</div>
-      <div class="flow-step"><span class="step-num">3</span> Контакт автоматически разрешается или создаётся в базе данных</div>
-      <div class="flow-step"><span class="step-num">4</span> Gemini AI классифицирует интент и извлекает сущности (имя, дата, услуга…)</div>
-      <div class="flow-step"><span class="step-num">5</span> Система маршрутизирует сообщение: автоответ, сбор данных или эскалация</div>
-      <div class="flow-step"><span class="step-num">6</span> Если нужен автоответ — Gemini генерирует текст, бот отправляет его пациенту</div>
-      <div class="flow-step"><span class="step-num">7</span> Всё сохраняется в БД: сообщение, интент, статус разговора, задача для администратора</div>
+      <div class="flow-step"><span class="step-num">1</span> Patient sends a message to the clinic's Telegram bot</div>
+      <div class="flow-step"><span class="step-num">2</span> Webhook delivers the update to the FastAPI server</div>
+      <div class="flow-step"><span class="step-num">3</span> Contact is automatically resolved or created in the database</div>
+      <div class="flow-step"><span class="step-num">4</span> Gemini AI classifies the intent and extracts entities (name, date, service…)</div>
+      <div class="flow-step"><span class="step-num">5</span> The system routes the message: auto-reply, data collection, or escalation</div>
+      <div class="flow-step"><span class="step-num">6</span> If auto-reply is needed — Gemini generates text, the bot sends it to the patient</div>
+      <div class="flow-step"><span class="step-num">7</span> Everything is saved to the DB: message, intent, conversation status, admin task</div>
     </div>
   </section>
 
   <!-- ══════════════════════════════════════════════════ -->
   <section id="architecture">
-    <h2>Архитектура</h2>
+    <h2>Architecture</h2>
 
-    <h3>Обработка входящего сообщения</h3>
+    <h3>Inbound Message Processing</h3>
     <div class="pipeline">
       <div class="pipeline-step"><span class="num">1</span><span class="icon">📨</span>Telegram<br>Webhook</div>
       <div class="pipeline-step"><span class="num">2</span><span class="icon">🔄</span>Normalize<br>Adapter</div>
@@ -451,65 +451,65 @@
       <div class="pipeline-step"><span class="num">8</span><span class="icon">📤</span>Send +<br>Store</div>
     </div>
 
-    <h3>Структура проекта</h3>
+    <h3>Project Structure</h3>
     <pre><code>dental_clinic/
 ├── apps/
-│   ├── api/                          # FastAPI backend (основное приложение)
+│   ├── api/                          # FastAPI backend (main application)
 │   │   ├── app/
-│   │   │   ├── config.py             # Настройки (pydantic-settings)
+│   │   │   ├── config.py             # Settings (pydantic-settings)
 │   │   │   ├── db/
-│   │   │   │   ├── models.py         # SQLAlchemy ORM модели (21 таблица)
-│   │   │   │   └── session.py        # Фабрика сессий БД
+│   │   │   │   ├── models.py         # SQLAlchemy ORM models (21 tables)
+│   │   │   │   └── session.py        # DB session factory
 │   │   │   └── modules/
 │   │   │       ├── inbound_messages/
 │   │   │       │   ├── api.py        # Webhook endpoint /webhooks/telegram
-│   │   │       │   ├── service.py    # Главный оркестратор pipeline
+│   │   │       │   ├── service.py    # Main pipeline orchestrator
 │   │   │       │   ├── gemini.py     # Gemini AI: classify + generate_reply
 │   │   │       │   ├── constants.py  # IntentCode, RouteType, HandoffTaskType…
-│   │   │       │   ├── schemas.py    # Pydantic схемы UnifiedIncomingMessage
-│   │   │       │   ├── telegram_client.py  # Отправка сообщений через Telegram API
+│   │   │       │   ├── schemas.py    # Pydantic schemas — UnifiedIncomingMessage
+│   │   │       │   ├── telegram_client.py  # Outbound Telegram API client
 │   │   │       │   └── adapters/
 │   │   │       │       └── telegram.py     # normalize_telegram_update()
-│   │   │       ├── contacts/         # Разрешение и создание контактов
-│   │   │       ├── conversations/    # Получение/создание диалогов
-│   │   │       ├── appointment_requests/  # Заявки на запись
+│   │   │       ├── contacts/         # Contact resolution and creation
+│   │   │       ├── conversations/    # Conversation get/create
+│   │   │       ├── appointment_requests/  # Booking request management
 │   │   │       └── health/           # GET /health
-│   │   ├── alembic/                  # Миграции БД (4 версии)
+│   │   ├── alembic/                  # DB migrations (4 versions)
 │   │   ├── scripts/
-│   │   │   └── seed_db.py            # Начальные данные
-│   │   └── tests/                    # 120 юнит-тестов
-│   ├── web/                          # Astro.js фронтенд
+│   │   │   └── seed_db.py            # Reference data seeding
+│   │   └── tests/                    # 120 unit tests
+│   ├── web/                          # Astro.js frontend
 │   └── cms/                          # Directus CMS
-├── deploy/                           # Systemd / Docker конфиги
-└── readme/                           # Документация</code></pre>
+├── deploy/                           # Systemd / Docker configs
+└── readme/                           # Documentation</code></pre>
 
-    <h3>Двухвызовой дизайн Gemini</h3>
+    <h3>Two-Call Gemini Design</h3>
     <div class="card">
-      <p>Каждое входящее сообщение обрабатывается двумя последовательными вызовами Gemini API:</p>
+      <p>Every inbound message is processed by two sequential Gemini API calls:</p>
       <table>
         <tr>
-          <th>Вызов</th><th>Функция</th><th>Входные данные</th><th>Результат</th>
+          <th>Call</th><th>Function</th><th>Input</th><th>Output</th>
         </tr>
         <tr>
           <td><span class="badge badge-blue">Call 1</span></td>
           <td><code>classify_message()</code></td>
-          <td>текст + история + контекст контакта</td>
+          <td>text + history + contact context</td>
           <td>intent_code, route_type, confidence, entities</td>
         </tr>
         <tr>
           <td><span class="badge badge-green">Call 2</span></td>
           <td><code>generate_reply()</code></td>
-          <td>интент + сущности + справочные данные</td>
-          <td>текст ответа пациенту</td>
+          <td>intent + entities + reference data</td>
+          <td>reply text for the patient</td>
         </tr>
       </table>
-      <p style="margin-top:10px; font-size:13px; color:var(--text-muted)">Оба вызова используют структурированный JSON вывод (<code>response_mime_type: application/json</code>) — никакого парсинга свободного текста.</p>
+      <p style="margin-top:10px; font-size:13px; color:var(--text-muted)">Both calls use structured JSON output (<code>response_mime_type: application/json</code>) — no free-form text parsing required.</p>
     </div>
   </section>
 
   <!-- ══════════════════════════════════════════════════ -->
   <section id="stack">
-    <h2>Технологический стек</h2>
+    <h2>Tech Stack</h2>
 
     <div class="two-col">
       <div class="card">
@@ -517,97 +517,97 @@
         <table>
           <tr><td><strong>FastAPI</strong></td><td>Web framework, async webhooks</td></tr>
           <tr><td><strong>SQLAlchemy 2.0</strong></td><td>ORM (sync sessions)</td></tr>
-          <tr><td><strong>Alembic</strong></td><td>Миграции БД</td></tr>
-          <tr><td><strong>Pydantic</strong></td><td>Валидация схем</td></tr>
-          <tr><td><strong>pydantic-settings</strong></td><td>Конфигурация через env</td></tr>
-          <tr><td><strong>psycopg2</strong></td><td>PostgreSQL драйвер</td></tr>
+          <tr><td><strong>Alembic</strong></td><td>Database migrations</td></tr>
+          <tr><td><strong>Pydantic</strong></td><td>Schema validation</td></tr>
+          <tr><td><strong>pydantic-settings</strong></td><td>Env-based configuration</td></tr>
+          <tr><td><strong>psycopg2</strong></td><td>PostgreSQL driver</td></tr>
         </table>
       </div>
       <div class="card">
-        <h4>AI / Внешние сервисы</h4>
+        <h4>AI / External Services</h4>
         <table>
           <tr><td><strong>google-genai</strong></td><td>Gemini AI SDK (≥1.0)</td></tr>
           <tr><td><strong>Telegram Bot API</strong></td><td>Webhook + sendMessage</td></tr>
-          <tr><td><strong>Directus</strong></td><td>Headless CMS (порт 8055)</td></tr>
-          <tr><td><strong>n8n</strong></td><td>Workflow автоматизация (порт 5678)</td></tr>
+          <tr><td><strong>Directus</strong></td><td>Headless CMS (port 8055)</td></tr>
+          <tr><td><strong>n8n</strong></td><td>Workflow automation (port 5678)</td></tr>
         </table>
       </div>
       <div class="card">
-        <h4>Инфраструктура</h4>
+        <h4>Infrastructure</h4>
         <table>
-          <tr><td><strong>PostgreSQL</strong></td><td>Основная база данных</td></tr>
-          <tr><td><strong>Docker Compose</strong></td><td>Контейнеризация</td></tr>
+          <tr><td><strong>PostgreSQL</strong></td><td>Primary database</td></tr>
+          <tr><td><strong>Docker Compose</strong></td><td>Containerisation</td></tr>
           <tr><td><strong>Caddy</strong></td><td>Reverse proxy + HTTPS</td></tr>
-          <tr><td><strong>Uvicorn</strong></td><td>ASGI сервер</td></tr>
+          <tr><td><strong>Uvicorn</strong></td><td>ASGI server</td></tr>
         </table>
       </div>
       <div class="card">
-        <h4>Тестирование</h4>
+        <h4>Testing</h4>
         <table>
-          <tr><td><strong>pytest</strong></td><td>120 тестов</td></tr>
+          <tr><td><strong>pytest</strong></td><td>120 tests</td></tr>
           <tr><td><strong>httpx</strong></td><td>FastAPI TestClient</td></tr>
-          <tr><td><strong>unittest.mock</strong></td><td>Мокирование Gemini API</td></tr>
-          <tr><td><strong>Ruff</strong></td><td>Линтер (100 символов)</td></tr>
+          <tr><td><strong>unittest.mock</strong></td><td>Gemini API mocking</td></tr>
+          <tr><td><strong>Ruff</strong></td><td>Linter (100 char line length)</td></tr>
         </table>
       </div>
     </div>
 
-    <h3>Переменные окружения</h3>
-    <pre><code># Приложение
+    <h3>Environment Variables</h3>
+    <pre><code># Application
 APP_NAME=dental-clinic-api
 APP_ENV=production
 APP_HOST=0.0.0.0
 APP_PORT=8000
 
-# База данных
+# Database
 DATABASE_URL=postgresql+psycopg2://user:password@host:5432/dental_clinic
 
 # Telegram
-TELEGRAM_HTTP_API_TOKEN=&lt;токен бота от @BotFather&gt;
+TELEGRAM_HTTP_API_TOKEN=&lt;bot token from @BotFather&gt;
 
 # Google Gemini
-GEMINI_API_KEY=&lt;API ключ из Google AI Studio&gt;
+GEMINI_API_KEY=&lt;API key from Google AI Studio&gt;
 GEMINI_MODEL=gemini-2.0-flash
 
 # Directus CMS
 DIRECTUS_URL=http://localhost:8055
 DIRECTUS_ADMIN_EMAIL=admin@clinic.local
-DIRECTUS_ADMIN_PASSWORD=&lt;пароль&gt;</code></pre>
+DIRECTUS_ADMIN_PASSWORD=&lt;password&gt;</code></pre>
   </section>
 
   <!-- ══════════════════════════════════════════════════ -->
   <section id="telegram">
     <h2>Telegram Bot</h2>
 
-    <h3>Входящий поток (Inbound)</h3>
+    <h3>Inbound Flow</h3>
     <div class="card">
-      <p>Telegram доставляет обновления по webhook на эндпоинт <code>POST /webhooks/telegram</code>. Сервер всегда возвращает <code>200 OK</code>, чтобы Telegram не повторял доставку.</p>
+      <p>Telegram delivers updates via webhook to the <code>POST /webhooks/telegram</code> endpoint. The server always returns <code>200 OK</code> to prevent Telegram from retrying delivery.</p>
 
-      <p>Адаптер <code>normalize_telegram_update()</code> конвертирует raw Telegram Update в унифицированный объект <code>UnifiedIncomingMessage</code>:</p>
+      <p>The adapter <code>normalize_telegram_update()</code> converts a raw Telegram Update into a unified <code>UnifiedIncomingMessage</code> object:</p>
 
       <table>
-        <tr><th>Тип сообщения Telegram</th><th>message_type в системе</th><th>Обработка</th></tr>
-        <tr><td>text</td><td><code>text</code></td><td>Полная обработка + Gemini</td></tr>
-        <tr><td>photo / document с подписью</td><td><code>image</code></td><td>Полная обработка (текст из подписи)</td></tr>
-        <tr><td>sticker, voice, video</td><td><code>unsupported</code></td><td>Логируется, Gemini не вызывается</td></tr>
-        <tr><td>channel_post, callback_query</td><td>—</td><td>TelegramAdapterError, тихий пропуск</td></tr>
+        <tr><th>Telegram message type</th><th>message_type in system</th><th>Processing</th></tr>
+        <tr><td>text</td><td><code>text</code></td><td>Full processing + Gemini</td></tr>
+        <tr><td>photo / document with caption</td><td><code>image</code></td><td>Full processing (text from caption)</td></tr>
+        <tr><td>sticker, voice, video</td><td><code>unsupported</code></td><td>Logged, Gemini not called</td></tr>
+        <tr><td>channel_post, callback_query</td><td>—</td><td>TelegramAdapterError, silently skipped</td></tr>
       </table>
     </div>
 
-    <h3>Исходящий поток (Outbound)</h3>
+    <h3>Outbound Flow</h3>
     <div class="card">
-      <p>Модуль <code>telegram_client.py</code> отправляет ответы через стандартный Telegram Bot API без внешних зависимостей (используется <code>urllib</code>).</p>
+      <p>The <code>telegram_client.py</code> module sends replies via the standard Telegram Bot API without any external dependencies (uses <code>urllib</code>).</p>
       <pre><code>POST https://api.telegram.org/bot{TOKEN}/sendMessage
-{"chat_id": "123456789", "text": "Здравствуйте! Чем могу помочь?"}</code></pre>
-      <p>При ошибке выбрасывается <code>TelegramClientError</code>, которая перехватывается в <code>service.py</code> — исходящее сообщение не сохраняется в БД, если не было доставлено.</p>
+{"chat_id": "123456789", "text": "Hello! How can I help you?"}</code></pre>
+      <p>On failure, a <code>TelegramClientError</code> is raised and caught in <code>service.py</code> — outbound messages are not stored in the DB if delivery failed.</p>
     </div>
 
-    <h3>Регистрация Webhook</h3>
-    <pre><code># Установить webhook (выполнить один раз)
+    <h3>Registering the Webhook</h3>
+    <pre><code># Set the webhook (run once)
 curl -X POST "https://api.telegram.org/bot{TOKEN}/setWebhook" \
   -d "url=https://api.dental-clinic.kiremma.dev/webhooks/telegram"
 
-# Проверить статус
+# Verify status
 curl "https://api.telegram.org/bot{TOKEN}/getWebhookInfo"</code></pre>
   </section>
 
@@ -615,9 +615,9 @@ curl "https://api.telegram.org/bot{TOKEN}/getWebhookInfo"</code></pre>
   <section id="gemini">
     <h2>Gemini AI</h2>
 
-    <h3>Инициализация клиента</h3>
+    <h3>Client Initialisation</h3>
     <div class="card">
-      <p>Клиент создаётся лениво при первом обращении (deferred initialization), что позволяет мокировать его в тестах до импорта модуля:</p>
+      <p>The client is created lazily on first use (deferred initialisation), allowing tests to mock it before any module import:</p>
       <pre><code>from google import genai
 from google.genai import types
 
@@ -630,9 +630,9 @@ def _get_client() -> genai.Client:
     return _client</code></pre>
     </div>
 
-    <h3>Classify Call — Классификация интента</h3>
+    <h3>Classify Call — Intent Classification</h3>
     <div class="card">
-      <p>Системный промпт описывает 28 допустимых значений <code>intent_code</code> и 8 извлекаемых сущностей. Ответ принудительно в JSON через <code>response_mime_type</code>:</p>
+      <p>The system prompt describes all 28 allowed <code>intent_code</code> values and 8 extractable entities. The response is forced to JSON via <code>response_mime_type</code>:</p>
       <pre><code>response = _get_client().models.generate_content(
     model=settings.gemini_model,
     contents=CLASSIFICATION_SYSTEM_PROMPT + "\n\n" + user_prompt,
@@ -647,11 +647,11 @@ def _get_client() -> genai.Client:
             },
             "required": ["intent_code", "confidence"]
         },
-        temperature=0.1,  # низкая температура для консистентности
+        temperature=0.1,  # low temperature for consistency
     )
 )</code></pre>
 
-      <h4>Извлекаемые сущности</h4>
+      <h4>Extractable Entities</h4>
       <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;">
         <span class="tag">name</span>
         <span class="tag">phone</span>
@@ -664,9 +664,9 @@ def _get_client() -> genai.Client:
       </div>
     </div>
 
-    <h3>Reply Call — Генерация ответа</h3>
+    <h3>Reply Call — Response Generation</h3>
     <div class="card">
-      <p>Вызывается только для маршрутов <code>auto_reply</code> и <code>auto_reply_and_collect</code>. Правила в системном промпте: ответ 1–3 предложения, один чёткий следующий шаг, тот же язык, что и пациент.</p>
+      <p>Called only for <code>auto_reply</code> and <code>auto_reply_and_collect</code> routes. System prompt rules: 1–3 sentences, one clear next step, same language as the patient.</p>
       <pre><code>response = _get_client().models.generate_content(
     model=settings.gemini_model,
     contents=REPLY_SYSTEM_PROMPT + "\n\n" + user_prompt,
@@ -676,210 +676,210 @@ def _get_client() -> genai.Client:
     )
 )</code></pre>
 
-      <p>В <code>user_prompt</code> для генерации ответа передаётся:</p>
+      <p>The <code>user_prompt</code> for reply generation includes:</p>
       <ul class="bullets">
-        <li>Классифицированный интент</li>
-        <li>Извлечённые сущности</li>
-        <li>Недостающие поля для записи (если идёт сбор данных)</li>
-        <li>Справочные данные клиники (часы, адрес или цены — в зависимости от интента)</li>
-        <li>История последних 10 сообщений в диалоге</li>
+        <li>The classified intent</li>
+        <li>Extracted entities</li>
+        <li>Missing fields for booking (if data collection is ongoing)</li>
+        <li>Clinic reference data (hours, address, or prices — depending on intent)</li>
+        <li>The last 10 messages of conversation history</li>
       </ul>
     </div>
 
     <div class="alert alert-yellow">
-      <strong>⚠️ Квота API:</strong> Система использует <code>gemini-2.0-flash</code>. Бесплатный уровень может быть исчерпан при активном использовании. Для продакшена рекомендуется подключить оплату в Google AI Studio.
+      <strong>⚠️ API Quota:</strong> The system uses <code>gemini-2.0-flash</code>. The free tier may be exhausted under active use. For production, enabling billing in Google AI Studio is recommended.
     </div>
   </section>
 
   <!-- ══════════════════════════════════════════════════ -->
   <section id="intents">
-    <h2>Интенты классификации (28)</h2>
+    <h2>Classification Intents (28)</h2>
 
-    <p>Каждое сообщение классифицируется Gemini в один из следующих интентов. Цвет полосы слева обозначает тип маршрутизации:</p>
+    <p>Every message is classified by Gemini into one of the following intents. The left-border colour indicates the routing type:</p>
 
     <div style="display:flex; gap:12px; flex-wrap:wrap; margin: 8px 0 20px;">
-      <div style="display:flex;align-items:center;gap:6px;font-size:13px;"><div style="width:12px;height:12px;background:var(--accent);border-radius:2px;"></div> auto_reply — автоответ</div>
-      <div style="display:flex;align-items:center;gap:6px;font-size:13px;"><div style="width:12px;height:12px;background:var(--primary);border-radius:2px;"></div> auto_reply_and_collect — сбор данных</div>
-      <div style="display:flex;align-items:center;gap:6px;font-size:13px;"><div style="width:12px;height:12px;background:var(--warning);border-radius:2px;"></div> handoff_admin — передача администратору</div>
-      <div style="display:flex;align-items:center;gap:6px;font-size:13px;"><div style="width:12px;height:12px;background:var(--danger);border-radius:2px;"></div> handoff_urgent — срочная передача</div>
+      <div style="display:flex;align-items:center;gap:6px;font-size:13px;"><div style="width:12px;height:12px;background:var(--accent);border-radius:2px;"></div> auto_reply — automatic response</div>
+      <div style="display:flex;align-items:center;gap:6px;font-size:13px;"><div style="width:12px;height:12px;background:var(--primary);border-radius:2px;"></div> auto_reply_and_collect — collect booking data</div>
+      <div style="display:flex;align-items:center;gap:6px;font-size:13px;"><div style="width:12px;height:12px;background:var(--warning);border-radius:2px;"></div> handoff_admin — escalate to administrator</div>
+      <div style="display:flex;align-items:center;gap:6px;font-size:13px;"><div style="width:12px;height:12px;background:var(--danger);border-radius:2px;"></div> handoff_urgent — immediate escalation</div>
     </div>
 
-    <h3>Новые пациенты / общие вопросы</h3>
+    <h3>New Patients / General Questions</h3>
     <div class="intent-grid">
 
       <div class="intent-card auto-reply">
         <div class="intent-code">greeting</div>
-        <div class="intent-desc">Приветствие без конкретного запроса. «Привет», «Здравствуйте»</div>
+        <div class="intent-desc">Greeting with no specific request. "Hi", "Hello there"</div>
         <div class="intent-meta"><span class="badge badge-green">auto_reply</span></div>
       </div>
 
       <div class="intent-card auto-collect">
         <div class="intent-code">price_question</div>
-        <div class="intent-desc">Вопрос о стоимости услуг или процедур. «Сколько стоит чистка?»</div>
+        <div class="intent-desc">Question about service costs. "How much does a cleaning cost?"</div>
         <div class="intent-meta"><span class="badge badge-blue">auto_reply_and_collect</span></div>
       </div>
 
       <div class="intent-card auto-collect">
         <div class="intent-code">service_info</div>
-        <div class="intent-desc">Вопрос о составе или процессе услуги. «Что включает в себя имплантация?»</div>
+        <div class="intent-desc">Question about what a service includes or how it works. "What does an implant procedure involve?"</div>
         <div class="intent-meta"><span class="badge badge-blue">auto_reply_and_collect</span></div>
       </div>
 
       <div class="intent-card auto-collect">
         <div class="intent-code">appointment_request</div>
-        <div class="intent-desc">Хочет записаться на приём. Запускает сбор данных для записи.</div>
+        <div class="intent-desc">Patient wants to book an appointment. Triggers the booking data collection flow.</div>
         <div class="intent-meta"><span class="badge badge-blue">auto_reply_and_collect</span><span class="badge badge-purple">booking</span></div>
       </div>
 
       <div class="intent-card auto-collect">
         <div class="intent-code">appointment_availability</div>
-        <div class="intent-desc">Спрашивает о доступных датах и времени. «Есть ли запись на пятницу?»</div>
+        <div class="intent-desc">Asking about available slots. "Do you have openings on Friday?"</div>
         <div class="intent-meta"><span class="badge badge-blue">auto_reply_and_collect</span></div>
       </div>
 
       <div class="intent-card handoff-urgent">
         <div class="intent-code">emergency</div>
-        <div class="intent-desc">Острая боль, травма, отёк. Немедленная передача врачу. Приоритет: URGENT</div>
+        <div class="intent-desc">Acute pain, injury, swelling. Immediate escalation to a doctor. Priority: URGENT</div>
         <div class="intent-meta"><span class="badge badge-red">handoff_urgent</span><span class="badge badge-yellow">⚡ urgent</span></div>
       </div>
 
       <div class="intent-card auto-reply">
         <div class="intent-code">clinic_hours</div>
-        <div class="intent-desc">Вопрос о часах работы. Автоответ с данными из базы.</div>
+        <div class="intent-desc">Question about opening hours. Auto-reply using branch data from the DB.</div>
         <div class="intent-meta"><span class="badge badge-green">auto_reply</span></div>
       </div>
 
       <div class="intent-card auto-reply">
         <div class="intent-code">location_question</div>
-        <div class="intent-desc">Вопрос об адресе, парковке, маршруте. Автоответ с данными филиала.</div>
+        <div class="intent-desc">Question about address, parking, or directions. Auto-reply using branch data.</div>
         <div class="intent-meta"><span class="badge badge-green">auto_reply</span></div>
       </div>
 
       <div class="intent-card auto-collect">
         <div class="intent-code">doctor_question</div>
-        <div class="intent-desc">Вопрос о конкретном враче или специальности. «Есть ли у вас ортодонт?»</div>
+        <div class="intent-desc">Question about a specific doctor or specialty. "Do you have an orthodontist?"</div>
         <div class="intent-meta"><span class="badge badge-blue">auto_reply_and_collect</span></div>
       </div>
 
       <div class="intent-card handoff-admin">
         <div class="intent-code">insurance_or_documents</div>
-        <div class="intent-desc">Страховка, документы, справки. Передача администратору для ручной обработки.</div>
+        <div class="intent-desc">Insurance, documents, certificates. Escalated to admin for manual handling.</div>
         <div class="intent-meta"><span class="badge badge-yellow">handoff_admin</span></div>
       </div>
 
       <div class="intent-card auto-collect">
         <div class="intent-code">first_visit_question</div>
-        <div class="intent-desc">Вопрос о первом визите. «Что взять с собой?», «Как проходит приём?»</div>
+        <div class="intent-desc">Question about a first visit. "What should I bring?", "How does the appointment work?"</div>
         <div class="intent-meta"><span class="badge badge-blue">auto_reply_and_collect</span></div>
       </div>
 
       <div class="intent-card auto-collect">
         <div class="intent-code">promotion_interest</div>
-        <div class="intent-desc">Интерес к акции или специальному предложению.</div>
+        <div class="intent-desc">Interest in a promotion or special offer.</div>
         <div class="intent-meta"><span class="badge badge-blue">auto_reply_and_collect</span></div>
       </div>
     </div>
 
-    <h3>Существующие пациенты</h3>
+    <h3>Existing Patients</h3>
     <div class="intent-grid">
 
       <div class="intent-card handoff-admin">
         <div class="intent-code">reschedule_appointment</div>
-        <div class="intent-desc">Хочет перенести существующий приём.</div>
+        <div class="intent-desc">Wants to reschedule an existing appointment.</div>
         <div class="intent-meta"><span class="badge badge-yellow">handoff_admin</span></div>
       </div>
 
       <div class="intent-card handoff-admin">
         <div class="intent-code">cancel_appointment</div>
-        <div class="intent-desc">Хочет отменить запись.</div>
+        <div class="intent-desc">Wants to cancel a booking.</div>
         <div class="intent-meta"><span class="badge badge-yellow">handoff_admin</span></div>
       </div>
 
       <div class="intent-card auto-reply">
         <div class="intent-code">confirm_appointment</div>
-        <div class="intent-desc">Подтверждает запись. «Да, приду в пятницу».</div>
+        <div class="intent-desc">Confirms an appointment. "Yes, I'll be there on Friday."</div>
         <div class="intent-meta"><span class="badge badge-green">auto_reply</span></div>
       </div>
 
       <div class="intent-card handoff-admin">
         <div class="intent-code">appointment_details</div>
-        <div class="intent-desc">Спрашивает детали существующей записи. Время, врач, адрес.</div>
+        <div class="intent-desc">Asking for details of an existing appointment — time, doctor, address.</div>
         <div class="intent-meta"><span class="badge badge-yellow">handoff_admin</span></div>
       </div>
 
       <div class="intent-card handoff-admin">
         <div class="intent-code">post_visit_followup</div>
-        <div class="intent-desc">Вопрос после лечения. Боль, побочные эффекты. Приоритет: HIGH</div>
+        <div class="intent-desc">Question after treatment — pain, side effects. Priority: HIGH</div>
         <div class="intent-meta"><span class="badge badge-yellow">handoff_admin</span><span class="badge badge-yellow">↑ high</span></div>
       </div>
 
       <div class="intent-card handoff-admin">
         <div class="intent-code">treatment_plan_question</div>
-        <div class="intent-desc">Вопрос о продолжении лечения или плане лечения.</div>
+        <div class="intent-desc">Question about continuing or planning treatment.</div>
         <div class="intent-meta"><span class="badge badge-yellow">handoff_admin</span></div>
       </div>
 
       <div class="intent-card auto-collect">
         <div class="intent-code">repeat_service_request</div>
-        <div class="intent-desc">Хочет повторить знакомую услугу. «Запишите меня снова на чистку».</div>
+        <div class="intent-desc">Wants to repeat a known service. "Book me for another cleaning."</div>
         <div class="intent-meta"><span class="badge badge-blue">auto_reply_and_collect</span><span class="badge badge-purple">booking</span></div>
       </div>
 
       <div class="intent-card handoff-admin">
         <div class="intent-code">results_or_records_request</div>
-        <div class="intent-desc">Запрос снимков, записей, результатов анализов.</div>
+        <div class="intent-desc">Requesting X-rays, records, or test results.</div>
         <div class="intent-meta"><span class="badge badge-yellow">handoff_admin</span></div>
       </div>
     </div>
 
-    <h3>Универсальные</h3>
+    <h3>Universal</h3>
     <div class="intent-grid">
 
       <div class="intent-card handoff-admin">
         <div class="intent-code">contact_request</div>
-        <div class="intent-desc">Просит перезвонить или связать с администратором.</div>
+        <div class="intent-desc">Asks to be called back or connected to an administrator.</div>
         <div class="intent-meta"><span class="badge badge-yellow">handoff_admin</span></div>
       </div>
 
       <div class="intent-card auto-collect">
         <div class="intent-code">leave_contact</div>
-        <div class="intent-desc">Оставляет номер телефона или email для обратной связи.</div>
+        <div class="intent-desc">Provides a phone number or email for a callback.</div>
         <div class="intent-meta"><span class="badge badge-blue">auto_reply_and_collect</span></div>
       </div>
 
       <div class="intent-card auto-collect">
         <div class="intent-code">provide_booking_data</div>
-        <div class="intent-desc">Предоставляет данные для записи в ответ на вопросы бота.</div>
+        <div class="intent-desc">Provides booking data in response to bot questions.</div>
         <div class="intent-meta"><span class="badge badge-blue">auto_reply_and_collect</span><span class="badge badge-purple">booking</span></div>
       </div>
 
       <div class="intent-card auto-reply">
         <div class="intent-code">faq_general</div>
-        <div class="intent-desc">Общий вопрос о клинике, который не попадает в другие категории.</div>
+        <div class="intent-desc">General question about the clinic that doesn't fit other categories.</div>
         <div class="intent-meta"><span class="badge badge-green">auto_reply</span></div>
       </div>
 
       <div class="intent-card handoff-admin">
         <div class="intent-code">complaint_or_negative_feedback</div>
-        <div class="intent-desc">Жалоба или негативный отзыв. Приоритет: HIGH</div>
+        <div class="intent-desc">Complaint or negative review. Priority: HIGH</div>
         <div class="intent-meta"><span class="badge badge-yellow">handoff_admin</span><span class="badge badge-yellow">↑ high</span></div>
       </div>
 
       <div class="intent-card auto-reply">
         <div class="intent-code">gratitude_or_positive_feedback</div>
-        <div class="intent-desc">Благодарность или положительный отзыв.</div>
+        <div class="intent-desc">Thank-you message or positive review.</div>
         <div class="intent-meta"><span class="badge badge-green">auto_reply</span></div>
       </div>
 
       <div class="intent-card auto-reply">
         <div class="intent-code">non_relevant_message</div>
-        <div class="intent-desc">Спам, оффтоп. Автоответ или тихий пропуск.</div>
+        <div class="intent-desc">Spam or off-topic content. Auto-reply or silent skip.</div>
         <div class="intent-meta"><span class="badge badge-green">auto_reply</span></div>
       </div>
 
       <div class="intent-card auto-collect">
         <div class="intent-code">unknown</div>
-        <div class="intent-desc">Интент не удалось определить. Fallback при ошибке Gemini.</div>
+        <div class="intent-desc">Intent could not be determined. Fallback when Gemini fails.</div>
         <div class="intent-meta"><span class="badge badge-blue">auto_reply_and_collect</span></div>
       </div>
     </div>
@@ -887,92 +887,92 @@ def _get_client() -> genai.Client:
 
   <!-- ══════════════════════════════════════════════════ -->
   <section id="routing">
-    <h2>Логика маршрутизации</h2>
+    <h2>Routing Logic</h2>
 
-    <p>После классификации Python-код (не Gemini) принимает решение о маршруте на основе <code>INTENT_ROUTE_MAP</code>:</p>
+    <p>After classification, Python code (not Gemini) makes the routing decision based on <code>INTENT_ROUTE_MAP</code>:</p>
 
     <table>
-      <tr><th>Маршрут</th><th>Действие</th><th>Статус разговора</th><th>HandoffTask</th></tr>
+      <tr><th>Route</th><th>Action</th><th>Conversation Status</th><th>HandoffTask</th></tr>
       <tr>
         <td><span class="badge badge-green">auto_reply</span></td>
-        <td>Gemini генерирует ответ и отправляет пациенту</td>
+        <td>Gemini generates a reply and sends it to the patient</td>
         <td><code>classified</code></td>
-        <td>Нет</td>
+        <td>None</td>
       </tr>
       <tr>
         <td><span class="badge badge-blue">auto_reply_and_collect</span></td>
-        <td>Бот собирает данные для записи, спрашивает недостающее поле</td>
+        <td>Bot collects booking data, asks for the next missing field</td>
         <td><code>waiting_for_patient_data</code> → <code>booking_request_created</code></td>
-        <td>Нет</td>
+        <td>None</td>
       </tr>
       <tr>
         <td><span class="badge badge-yellow">handoff_admin</span></td>
-        <td>Создаётся HandoffTask, бот отправляет подтверждение принятия</td>
+        <td>HandoffTask created, bot sends acknowledgement to patient</td>
         <td><code>waiting_for_admin</code></td>
-        <td>Да</td>
+        <td>Yes</td>
       </tr>
       <tr>
         <td><span class="badge badge-red">handoff_urgent</span></td>
-        <td>Экстренная эскалация, бот уведомляет пациента</td>
+        <td>Emergency escalation, bot notifies patient</td>
         <td><code>urgent_handoff</code></td>
-        <td>Да (тип: urgent_case)</td>
+        <td>Yes (type: urgent_case)</td>
       </tr>
     </table>
 
-    <h3>Приоритеты задач</h3>
+    <h3>Task Priorities</h3>
     <table>
-      <tr><th>Интент</th><th>Приоритет</th></tr>
+      <tr><th>Intent</th><th>Priority</th></tr>
       <tr><td><code>emergency</code></td><td><span class="badge badge-red">urgent</span></td></tr>
       <tr><td><code>complaint_or_negative_feedback</code></td><td><span class="badge badge-yellow">high</span></td></tr>
       <tr><td><code>post_visit_followup</code></td><td><span class="badge badge-yellow">high</span></td></tr>
-      <tr><td>Все остальные handoff</td><td><span class="badge badge-gray">normal</span></td></tr>
+      <tr><td>All other handoff intents</td><td><span class="badge badge-gray">normal</span></td></tr>
     </table>
 
-    <h3>Booking Flow — Сценарий записи</h3>
+    <h3>Booking Flow</h3>
     <div class="card">
-      <p>Для интентов из группы <code>BOOKING_INTENTS</code> система сохраняет накопленные данные в <code>AppointmentRequest</code> и вычисляет недостающие поля:</p>
-      <p>Обязательные поля для записи: <span class="tag">name</span><span class="tag">phone</span><span class="tag">service</span><span class="tag">date_preference</span></p>
-      <p>Бот последовательно запрашивает по одному полю за раз, пока все данные не будут собраны. Затем статус переходит в <code>booking_request_created</code> и администратор подтверждает запись вручную.</p>
+      <p>For intents in the <code>BOOKING_INTENTS</code> group, the system saves accumulated data to <code>AppointmentRequest</code> and computes which fields are still missing:</p>
+      <p>Required fields for a booking: <span class="tag">name</span><span class="tag">phone</span><span class="tag">service</span><span class="tag">date_preference</span></p>
+      <p>The bot asks for one missing field at a time until all required data is collected. The conversation then transitions to <code>booking_request_created</code> and an administrator confirms the slot manually.</p>
     </div>
   </section>
 
   <!-- ══════════════════════════════════════════════════ -->
   <section id="scenarios">
-    <h2>Пользовательские сценарии</h2>
+    <h2>User Scenarios</h2>
 
     <!-- Scenario 1 -->
     <div class="scenario">
       <div class="scenario-header">
         <span class="scenario-icon">📅</span>
         <div>
-          <h3>Сценарий 1: Запись на приём (новый пациент)</h3>
+          <h3>Scenario 1: Booking an Appointment (New Patient)</h3>
           <div style="display:flex;gap:8px;margin-top:4px;"><span class="badge badge-blue">auto_reply_and_collect</span><span class="badge badge-purple">booking flow</span></div>
         </div>
       </div>
       <div class="scenario-body">
         <div class="chat-bubble patient">
-          <span class="chat-role">Пациент</span>
-          <div class="bubble patient-bubble">Хочу записаться на чистку зубов в субботу после 14:00. Меня зовут Александра.</div>
+          <span class="chat-role">Patient</span>
+          <div class="bubble patient-bubble">I'd like to book a teeth cleaning on Saturday after 2pm. My name is Alexandra.</div>
         </div>
         <div class="chat-bubble">
-          <span class="chat-role">Система</span>
-          <div class="bubble system-bubble">🧠 Gemini: intent=appointment_request, entities={service:"cleaning", date_preference:"суббота", time_preference:"после 14:00", name:"Александра"} | Недостаёт: phone → запросить</div>
+          <span class="chat-role">System</span>
+          <div class="bubble system-bubble">🧠 Gemini: intent=appointment_request, entities={service:"cleaning", date_preference:"Saturday", time_preference:"after 2pm", name:"Alexandra"} | Missing: phone → ask for it</div>
         </div>
         <div class="chat-bubble">
-          <span class="chat-role">Бот</span>
-          <div class="bubble bot-bubble">Здравствуйте, Александра! Я записал ваш запрос на чистку зубов в субботу после 14:00. Пожалуйста, укажите ваш номер телефона, чтобы администратор мог подтвердить время.</div>
+          <span class="chat-role">Bot</span>
+          <div class="bubble bot-bubble">Hi Alexandra! I've noted your request for a teeth cleaning on Saturday after 2pm. Could you please share your phone number so our administrator can confirm a slot?</div>
         </div>
         <div class="chat-bubble patient">
-          <span class="chat-role">Пациент</span>
-          <div class="bubble patient-bubble">+7 999 123-45-67</div>
+          <span class="chat-role">Patient</span>
+          <div class="bubble patient-bubble">+44 7700 900 123</div>
         </div>
         <div class="chat-bubble">
-          <span class="chat-role">Система</span>
-          <div class="bubble system-bubble">🧠 intent=provide_booking_data, entities={phone:"+79991234567"} | Все поля заполнены → booking_request_created</div>
+          <span class="chat-role">System</span>
+          <div class="bubble system-bubble">🧠 intent=provide_booking_data, entities={phone:"+447700900123"} | All required fields collected → booking_request_created</div>
         </div>
         <div class="chat-bubble">
-          <span class="chat-role">Бот</span>
-          <div class="bubble bot-bubble">Отлично! Ваша заявка на запись создана. Наш администратор свяжется с вами в ближайшее время для подтверждения точного времени.</div>
+          <span class="chat-role">Bot</span>
+          <div class="bubble bot-bubble">Great! Your booking request has been created. Our administrator will contact you shortly to confirm the exact time.</div>
         </div>
       </div>
     </div>
@@ -982,22 +982,22 @@ def _get_client() -> genai.Client:
       <div class="scenario-header">
         <span class="scenario-icon">🚨</span>
         <div>
-          <h3>Сценарий 2: Экстренный случай</h3>
+          <h3>Scenario 2: Emergency Case</h3>
           <div style="display:flex;gap:8px;margin-top:4px;"><span class="badge badge-red">handoff_urgent</span><span class="badge badge-yellow">⚡ urgent</span></div>
         </div>
       </div>
       <div class="scenario-body">
         <div class="chat-bubble patient">
-          <span class="chat-role">Пациент</span>
-          <div class="bubble patient-bubble">После удаления зуба сильное кровотечение и отёк не спадает уже 4 часа, очень больно</div>
+          <span class="chat-role">Patient</span>
+          <div class="bubble patient-bubble">After my extraction there's heavy bleeding and swelling that hasn't gone down in 4 hours, it's very painful</div>
         </div>
         <div class="chat-bubble">
-          <span class="chat-role">Система</span>
-          <div class="bubble system-bubble">🧠 intent=emergency, confidence=0.99 | route=handoff_urgent | Создан HandoffTask(type=urgent_case, priority=urgent) | Статус: urgent_handoff</div>
+          <span class="chat-role">System</span>
+          <div class="bubble system-bubble">🧠 intent=emergency, confidence=0.99 | route=handoff_urgent | HandoffTask created (type=urgent_case, priority=urgent) | Status: urgent_handoff</div>
         </div>
         <div class="chat-bubble">
-          <span class="chat-role">Бот</span>
-          <div class="bubble bot-bubble">Я понимаю, что ситуация серьёзная. Ваше обращение немедленно передано нашему врачу — с вами свяжутся в течение нескольких минут. Если ситуация критическая, пожалуйста, обратитесь в скорую помощь.</div>
+          <span class="chat-role">Bot</span>
+          <div class="bubble bot-bubble">I understand this is serious. Your message has been passed to our doctor immediately — someone will contact you within minutes. If the situation is critical, please call emergency services.</div>
         </div>
       </div>
     </div>
@@ -1007,22 +1007,22 @@ def _get_client() -> genai.Client:
       <div class="scenario-header">
         <span class="scenario-icon">🕐</span>
         <div>
-          <h3>Сценарий 3: Вопрос о часах работы</h3>
+          <h3>Scenario 3: Opening Hours Question</h3>
           <div style="display:flex;gap:8px;margin-top:4px;"><span class="badge badge-green">auto_reply</span></div>
         </div>
       </div>
       <div class="scenario-body">
         <div class="chat-bubble patient">
-          <span class="chat-role">Пациент</span>
-          <div class="bubble patient-bubble">До скольки вы работаете по субботам?</div>
+          <span class="chat-role">Patient</span>
+          <div class="bubble patient-bubble">What time do you close on Saturdays?</div>
         </div>
         <div class="chat-bubble">
-          <span class="chat-role">Система</span>
-          <div class="bubble system-bubble">🧠 intent=clinic_hours | Загружены данные BranchHour из БД → передано в Gemini для генерации ответа</div>
+          <span class="chat-role">System</span>
+          <div class="bubble system-bubble">🧠 intent=clinic_hours | BranchHour data loaded from DB → passed to Gemini for reply generation</div>
         </div>
         <div class="chat-bubble">
-          <span class="chat-role">Бот</span>
-          <div class="bubble bot-bubble">Клиника Marylebone работает в субботу с 10:00 до 16:00 по предварительной записи. Клиника Canary Wharf — с 9:00 до 14:00. Хотите записаться?</div>
+          <span class="chat-role">Bot</span>
+          <div class="bubble bot-bubble">The Marylebone clinic is open on Saturdays from 10:00 to 16:00 by appointment. Canary Wharf runs 9:00 to 14:00. Would you like to book a slot?</div>
         </div>
       </div>
     </div>
@@ -1032,22 +1032,22 @@ def _get_client() -> genai.Client:
       <div class="scenario-header">
         <span class="scenario-icon">😤</span>
         <div>
-          <h3>Сценарий 4: Жалоба пациента</h3>
+          <h3>Scenario 4: Patient Complaint</h3>
           <div style="display:flex;gap:8px;margin-top:4px;"><span class="badge badge-yellow">handoff_admin</span><span class="badge badge-yellow">↑ high</span></div>
         </div>
       </div>
       <div class="scenario-body">
         <div class="chat-bubble patient">
-          <span class="chat-role">Пациент</span>
-          <div class="bubble patient-bubble">Я очень недоволен! Мне назначили время на 11:00, я приехал, а меня не принимали час. Это неприемлемо!</div>
+          <span class="chat-role">Patient</span>
+          <div class="bubble patient-bubble">I'm very unhappy! I had an 11am appointment, I came in and wasn't seen for an hour. This is completely unacceptable!</div>
         </div>
         <div class="chat-bubble">
-          <span class="chat-role">Система</span>
-          <div class="bubble system-bubble">🧠 intent=complaint_or_negative_feedback, priority=high | route=handoff_admin | Создан HandoffTask(type=complaint, priority=high) | Статус: waiting_for_admin</div>
+          <span class="chat-role">System</span>
+          <div class="bubble system-bubble">🧠 intent=complaint_or_negative_feedback, priority=high | route=handoff_admin | HandoffTask created (type=complaint, priority=high) | Status: waiting_for_admin</div>
         </div>
         <div class="chat-bubble">
-          <span class="chat-role">Бот</span>
-          <div class="bubble bot-bubble">Мне очень жаль, что вы оказались в такой ситуации. Ваше обращение передано руководству клиники — с вами свяжутся в ближайшее время, чтобы разрешить ситуацию.</div>
+          <span class="chat-role">Bot</span>
+          <div class="bubble bot-bubble">I'm very sorry to hear this happened. Your complaint has been escalated to our management team — someone will reach out to you shortly to resolve the situation.</div>
         </div>
       </div>
     </div>
@@ -1057,22 +1057,22 @@ def _get_client() -> genai.Client:
       <div class="scenario-header">
         <span class="scenario-icon">💰</span>
         <div>
-          <h3>Сценарий 5: Вопрос о ценах</h3>
+          <h3>Scenario 5: Price Question</h3>
           <div style="display:flex;gap:8px;margin-top:4px;"><span class="badge badge-blue">auto_reply_and_collect</span></div>
         </div>
       </div>
       <div class="scenario-body">
         <div class="chat-bubble patient">
-          <span class="chat-role">Пациент</span>
-          <div class="bubble patient-bubble">Сколько стоит отбеливание зубов?</div>
+          <span class="chat-role">Patient</span>
+          <div class="bubble patient-bubble">How much does teeth whitening cost?</div>
         </div>
         <div class="chat-bubble">
-          <span class="chat-role">Система</span>
-          <div class="bubble system-bubble">🧠 intent=price_question | Загружены данные Service из БД (цены) → передано в Gemini</div>
+          <span class="chat-role">System</span>
+          <div class="bubble system-bubble">🧠 intent=price_question | Service price data loaded from DB → passed to Gemini</div>
         </div>
         <div class="chat-bubble">
-          <span class="chat-role">Бот</span>
-          <div class="bubble bot-bubble">Процедура отбеливания зубов в нашей клинике стоит £600 и занимает около 90 минут. Хотите записаться или у вас есть другие вопросы?</div>
+          <span class="chat-role">Bot</span>
+          <div class="bubble bot-bubble">In-office teeth whitening at our clinic is £600 and takes approximately 90 minutes. Would you like to book, or do you have any other questions?</div>
         </div>
       </div>
     </div>
@@ -1080,61 +1080,61 @@ def _get_client() -> genai.Client:
 
   <!-- ══════════════════════════════════════════════════ -->
   <section id="models">
-    <h2>Модели данных</h2>
+    <h2>Data Models</h2>
 
     <div class="two-col">
       <div>
-        <h3>Организация</h3>
+        <h3>Organisation</h3>
         <table>
-          <tr><th>Таблица</th><th>Описание</th></tr>
-          <tr><td><code>branches</code></td><td>Филиалы клиники (адрес, часы, парковка)</td></tr>
-          <tr><td><code>branch_hours</code></td><td>Часы работы по дням недели</td></tr>
-          <tr><td><code>staff</code></td><td>Сотрудники (врачи, администраторы, операторы)</td></tr>
-          <tr><td><code>staff_branches</code></td><td>Привязка сотрудников к филиалам</td></tr>
-          <tr><td><code>staff_schedules</code></td><td>Недельное расписание сотрудников</td></tr>
-          <tr><td><code>staff_schedule_exceptions</code></td><td>Исключения: выходной, отпуск, больничный</td></tr>
-          <tr><td><code>staff_services</code></td><td>Какие услуги выполняет каждый сотрудник</td></tr>
+          <tr><th>Table</th><th>Description</th></tr>
+          <tr><td><code>branches</code></td><td>Clinic locations (address, hours, parking)</td></tr>
+          <tr><td><code>branch_hours</code></td><td>Opening hours per weekday per branch</td></tr>
+          <tr><td><code>staff</code></td><td>Staff members (doctors, admins, operators)</td></tr>
+          <tr><td><code>staff_branches</code></td><td>Staff-to-branch assignments</td></tr>
+          <tr><td><code>staff_schedules</code></td><td>Weekly recurring schedules</td></tr>
+          <tr><td><code>staff_schedule_exceptions</code></td><td>Overrides: day off, holiday, sick leave</td></tr>
+          <tr><td><code>staff_services</code></td><td>Which services each staff member performs</td></tr>
         </table>
 
-        <h3>Услуги и приёмы</h3>
+        <h3>Services &amp; Appointments</h3>
         <table>
-          <tr><th>Таблица</th><th>Описание</th></tr>
-          <tr><td><code>service_categories</code></td><td>Категории услуг</td></tr>
-          <tr><td><code>services</code></td><td>Услуги (длительность, базовая цена)</td></tr>
-          <tr><td><code>appointments</code></td><td>Подтверждённые приёмы</td></tr>
-          <tr><td><code>appointment_statuses</code></td><td>Статусы приёмов (справочник)</td></tr>
-          <tr><td><code>appointment_services</code></td><td>Услуги в рамках приёма</td></tr>
-          <tr><td><code>appointment_requests</code></td><td>Заявки от ботa (до подтверждения)</td></tr>
+          <tr><th>Table</th><th>Description</th></tr>
+          <tr><td><code>service_categories</code></td><td>Service groupings</td></tr>
+          <tr><td><code>services</code></td><td>Individual services (duration, base price)</td></tr>
+          <tr><td><code>appointments</code></td><td>Confirmed bookings</td></tr>
+          <tr><td><code>appointment_statuses</code></td><td>Appointment status lookup table</td></tr>
+          <tr><td><code>appointment_services</code></td><td>Services within an appointment</td></tr>
+          <tr><td><code>appointment_requests</code></td><td>Bot-created draft requests (pre-confirmation)</td></tr>
         </table>
       </div>
 
       <div>
-        <h3>Контакты и каналы</h3>
+        <h3>Contacts &amp; Channels</h3>
         <table>
-          <tr><th>Таблица</th><th>Описание</th></tr>
-          <tr><td><code>channels</code></td><td>Каналы связи (telegram, whatsapp, email…)</td></tr>
-          <tr><td><code>contacts</code></td><td>Пациенты/лиды (lifecycle_stage)</td></tr>
-          <tr><td><code>contact_channel_identities</code></td><td>ID контакта в каждом канале</td></tr>
+          <tr><th>Table</th><th>Description</th></tr>
+          <tr><td><code>channels</code></td><td>Communication channels (telegram, whatsapp, email…)</td></tr>
+          <tr><td><code>contacts</code></td><td>Patients / leads (with lifecycle_stage)</td></tr>
+          <tr><td><code>contact_channel_identities</code></td><td>Contact ID per channel</td></tr>
         </table>
 
-        <h3>Диалоги и сообщения</h3>
+        <h3>Conversations &amp; Messages</h3>
         <table>
-          <tr><th>Таблица</th><th>Описание</th></tr>
-          <tr><td><code>conversations</code></td><td>Диалог (статус, приоритет, оператор)</td></tr>
-          <tr><td><code>conversation_statuses</code></td><td>Статусы диалогов (справочник)</td></tr>
-          <tr><td><code>conversation_intents</code></td><td>Результат классификации Gemini</td></tr>
-          <tr><td><code>messages</code></td><td>Сообщения (inbound/outbound, sender_type)</td></tr>
+          <tr><th>Table</th><th>Description</th></tr>
+          <tr><td><code>conversations</code></td><td>Chat thread (status, priority, operator)</td></tr>
+          <tr><td><code>conversation_statuses</code></td><td>Conversation status lookup table</td></tr>
+          <tr><td><code>conversation_intents</code></td><td>Gemini classification result per message</td></tr>
+          <tr><td><code>messages</code></td><td>Messages (inbound/outbound, sender_type)</td></tr>
         </table>
 
-        <h3>Задачи</h3>
+        <h3>Tasks</h3>
         <table>
-          <tr><th>Таблица</th><th>Описание</th></tr>
-          <tr><td><code>handoff_tasks</code></td><td>Задачи эскалации для администраторов</td></tr>
+          <tr><th>Table</th><th>Description</th></tr>
+          <tr><td><code>handoff_tasks</code></td><td>Escalation tasks for administrators</td></tr>
         </table>
       </div>
     </div>
 
-    <h3>Lifecycle пациента</h3>
+    <h3>Patient Lifecycle</h3>
     <div class="card" style="display:flex;align-items:center;gap:0;padding:16px 20px;flex-wrap:wrap;">
       <span class="badge badge-gray" style="margin:4px;">lead</span>
       <span style="color:var(--text-muted);margin:0 6px;">→</span>
@@ -1150,22 +1150,22 @@ def _get_client() -> genai.Client:
 
   <!-- ══════════════════════════════════════════════════ -->
   <section id="seed">
-    <h2>Начальные данные</h2>
+    <h2>Seed Data</h2>
 
     <div class="alert alert-yellow">
-      <strong>Важно:</strong> Миграции создают схему БД, но не заполняют справочные таблицы. Перед первым запуском необходимо выполнить seed.
+      <strong>Important:</strong> Migrations create the DB schema but do not populate reference tables. The seed script must be run before the first launch.
     </div>
 
-    <pre><code># Активировать venv и запустить скрипт
+    <pre><code># Activate venv and run the script
 cd dental_clinic/apps/api
 .venv\Scripts\Activate.ps1        # Windows
 python -m scripts.seed_db</code></pre>
 
-    <p>Скрипт создаёт или обновляет (idempotent):</p>
+    <p>The script creates or updates (idempotent):</p>
 
     <div class="two-col">
       <div class="card">
-        <h4>Каналы связи</h4>
+        <h4>Communication Channels</h4>
         <ul class="bullets">
           <li>telegram</li>
           <li>whatsapp</li>
@@ -1176,7 +1176,7 @@ python -m scripts.seed_db</code></pre>
         </ul>
       </div>
       <div class="card">
-        <h4>Статусы диалогов</h4>
+        <h4>Conversation Statuses</h4>
         <ul class="bullets">
           <li>new_incoming, classified</li>
           <li>waiting_for_patient_data</li>
@@ -1186,14 +1186,14 @@ python -m scripts.seed_db</code></pre>
         </ul>
       </div>
       <div class="card">
-        <h4>Филиалы (2)</h4>
+        <h4>Branches (2)</h4>
         <ul class="bullets">
-          <li>Marylebone Clinic (Пн–Пт 9–18, Сб 10–16)</li>
-          <li>Canary Wharf Clinic (Пн–Пт 8:30–19, Сб 9–14)</li>
+          <li>Marylebone Clinic (Mon–Fri 9–18, Sat 10–16)</li>
+          <li>Canary Wharf Clinic (Mon–Fri 8:30–19, Sat 9–14)</li>
         </ul>
       </div>
       <div class="card">
-        <h4>Услуги (4)</h4>
+        <h4>Services (4)</h4>
         <ul class="bullets">
           <li>Initial Consultation — £150</li>
           <li>Dental Cleaning — £220</li>
@@ -1206,28 +1206,28 @@ python -m scripts.seed_db</code></pre>
 
   <!-- ══════════════════════════════════════════════════ -->
   <section id="api">
-    <h2>API Эндпоинты</h2>
+    <h2>API Endpoints</h2>
 
     <table>
-      <tr><th>Метод</th><th>Путь</th><th>Описание</th></tr>
+      <tr><th>Method</th><th>Path</th><th>Description</th></tr>
       <tr>
         <td><span class="badge badge-green">GET</span></td>
         <td><code>/health</code></td>
-        <td>Проверка работоспособности. Возвращает <code>{"status": "ok"}</code></td>
+        <td>Health check. Returns <code>{"status": "ok"}</code></td>
       </tr>
       <tr>
         <td><span class="badge badge-blue">POST</span></td>
         <td><code>/contacts/resolve</code></td>
-        <td>Разрешение или создание контакта по идентификатору в канале</td>
+        <td>Resolve or create a contact by channel identity</td>
       </tr>
       <tr>
         <td><span class="badge badge-blue">POST</span></td>
         <td><code>/webhooks/telegram</code></td>
-        <td>Telegram Bot Webhook. Всегда возвращает 200. Запускает полный pipeline.</td>
+        <td>Telegram Bot Webhook. Always returns 200. Triggers the full pipeline.</td>
       </tr>
     </table>
 
-    <h3>Webhook запрос (пример от Telegram)</h3>
+    <h3>Webhook Request (example from Telegram)</h3>
     <pre><code>POST /webhooks/telegram
 Content-Type: application/json
 
@@ -1237,22 +1237,22 @@ Content-Type: application/json
     "message_id": 42,
     "from": {
       "id": 987654321,
-      "first_name": "Александра",
+      "first_name": "Alexandra",
       "username": "alex_patient",
-      "language_code": "ru"
+      "language_code": "en"
     },
     "chat": {"id": 987654321, "type": "private"},
     "date": 1742000000,
-    "text": "Хочу записаться на чистку зубов"
+    "text": "I'd like to book a teeth cleaning"
   }
 }</code></pre>
   </section>
 
   <!-- ══════════════════════════════════════════════════ -->
   <section id="deploy">
-    <h2>Деплой</h2>
+    <h2>Deployment</h2>
 
-    <h3>Локальная разработка</h3>
+    <h3>Local Development</h3>
     <pre><code>cd dental_clinic/apps/api
 python -m venv .venv
 .venv\Scripts\Activate.ps1
@@ -1261,32 +1261,32 @@ pip install -e .[dev]
 python -m scripts.seed_db
 uvicorn app.main:app --reload --port 8000</code></pre>
 
-    <h3>Запуск тестов</h3>
-    <pre><code>pytest                          # все тесты
-pytest tests/test_gemini.py -v  # конкретный файл
-pytest tests/ -v                # verbose режим</code></pre>
+    <h3>Running Tests</h3>
+    <pre><code>pytest                          # all tests
+pytest tests/test_gemini.py -v  # single file
+pytest tests/ -v                # verbose output</code></pre>
 
     <h3>Production (Docker + Caddy)</h3>
-    <pre><code>docker compose up -d            # запуск всех сервисов
+    <pre><code>docker compose up -d            # start all services
 
-# Nginx/Caddy маршрутизация:
-# api.dental-clinic.kiremma.dev → api:8000 (внутренний порт)
-# Сервисы: API (8000), Directus (8055), n8n (5678), PostgreSQL (5432)</code></pre>
+# Caddy routing:
+# api.dental-clinic.kiremma.dev → api:8000 (internal port)
+# Services: API (8000), Directus (8055), n8n (5678), PostgreSQL (5432)</code></pre>
 
-    <h3>Миграции базы данных</h3>
+    <h3>Database Migrations</h3>
     <pre><code>cd dental_clinic/apps/api
 
-# Применить все миграции
+# Apply all migrations
 alembic upgrade head
 
-# Создать новую миграцию
-alembic revision --autogenerate -m "описание_изменений"
+# Create a new migration
+alembic revision --autogenerate -m "short_description"
 
-# История миграций
+# Migration history
 alembic history</code></pre>
 
     <div class="alert alert-green">
-      <strong>✅ Статус системы:</strong> Pipeline полностью реализован и работает end-to-end. Telegram webhook активен, Gemini классифицирует сообщения, автоответы отправляются, данные сохраняются в PostgreSQL.
+      <strong>✅ System Status:</strong> The pipeline is fully implemented and working end-to-end. The Telegram webhook is active, Gemini classifies messages, auto-replies are sent, and all data is persisted to PostgreSQL.
     </div>
   </section>
 

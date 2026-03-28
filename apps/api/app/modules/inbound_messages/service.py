@@ -187,49 +187,60 @@ def _load_reference_data(
 
 
 def _load_branch_hours(session: Session) -> dict[str, Any]:
-    """Load working hours for the first active branch."""
+    """Load working hours for all active branches."""
     from app.db.models import Branch, BranchHour
 
-    branch = session.scalar(select(Branch).where(Branch.is_active.is_(True)).limit(1))
-    if branch is None:
+    branches = session.scalars(select(Branch).where(Branch.is_active.is_(True))).all()
+    if not branches:
         return {"clinic_hours": "Working hours information is temporarily unavailable."}
 
-    hours = session.scalars(
-        select(BranchHour)
-        .where(BranchHour.branch_id == branch.id)
-        .order_by(BranchHour.weekday)
-    ).all()
-
     day_names = {0: "Mon", 1: "Tue", 2: "Wed", 3: "Thu", 4: "Fri", 5: "Sat", 6: "Sun"}
-    lines = []
-    for h in hours:
-        day = day_names.get(h.weekday, str(h.weekday))
-        if not h.is_active:
-            lines.append(f"{day}: closed")
-        else:
-            lines.append(f"{day}: {h.open_time:%H:%M}–{h.close_time:%H:%M}")
+    result = []
+    for branch in branches:
+        hours = session.scalars(
+            select(BranchHour)
+            .where(BranchHour.branch_id == branch.id)
+            .order_by(BranchHour.weekday)
+        ).all()
+        lines = []
+        for h in hours:
+            day = day_names.get(h.weekday, str(h.weekday))
+            if not h.is_active:
+                lines.append(f"{day}: closed")
+            else:
+                lines.append(f"{day}: {h.open_time:%H:%M}–{h.close_time:%H:%M}")
+        result.append({
+            "name": branch.name,
+            "hours": "\n".join(lines) if lines else "Not specified",
+        })
 
-    return {"clinic_name": branch.name, "clinic_hours": "\n".join(lines) if lines else "Not specified"}
+    return {"branches": result}
 
 
 def _load_branch_location(session: Session) -> dict[str, Any]:
-    """Load address and directions for the first active branch."""
+    """Load address and directions for all active branches."""
     from app.db.models import Branch
 
-    branch = session.scalar(select(Branch).where(Branch.is_active.is_(True)).limit(1))
-    if branch is None:
+    branches = session.scalars(select(Branch).where(Branch.is_active.is_(True))).all()
+    if not branches:
         return {"location": "Location information is temporarily unavailable."}
 
-    data: dict[str, Any] = {"clinic_name": branch.name}
-    if branch.address:
-        data["address"] = branch.address
-    if branch.parking_info:
-        data["parking"] = branch.parking_info
-    if branch.directions:
-        data["directions"] = branch.directions
-    if branch.map_url:
-        data["map_link"] = branch.map_url
-    return data
+    result = []
+    for branch in branches:
+        entry: dict[str, Any] = {"name": branch.name}
+        if branch.address:
+            entry["address"] = branch.address
+        if branch.phone:
+            entry["phone"] = branch.phone
+        if branch.parking_info:
+            entry["parking"] = branch.parking_info
+        if branch.directions:
+            entry["directions"] = branch.directions
+        if branch.map_url:
+            entry["map_link"] = branch.map_url
+        result.append(entry)
+
+    return {"branches": result}
 
 
 def _load_service_prices(session: Session) -> dict[str, Any]:
