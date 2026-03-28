@@ -31,6 +31,7 @@ def _patch_genai(monkeypatch):
 
     monkeypatch.setattr(mod, "_get_model", lambda: _mock_model)
     _mock_model.reset_mock()
+    _mock_model.generate_content.side_effect = None
 
 
 def _get_model() -> MagicMock:
