@@ -384,6 +384,7 @@ def process_incoming_message(
     # --- 5.5. Appointment booking flow ---
     # For booking-related intents, create/update the appointment_request and
     # compute which fields are still missing so Gemini can ask for them.
+    route = classification.route_type
     missing_fields: list[str] = []
 
     if (
@@ -405,7 +406,6 @@ def process_incoming_message(
         )
 
     # --- 6. Python routing logic ---
-    route = classification.route_type
 
     # Update conversation status based on route
     if route == RouteType.HANDOFF_URGENT:
