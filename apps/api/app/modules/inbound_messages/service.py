@@ -170,6 +170,7 @@ def _create_handoff_task(
 def _load_reference_data(
     session: Session,
     intent_code: str,
+    extracted_entities: dict[str, Any] | None = None,
 ) -> dict[str, Any] | None:
     """
     Load reference data relevant to the intent for reply generation.
@@ -181,8 +182,9 @@ def _load_reference_data(
         return _load_branch_hours(session)
     if intent_code == IntentCode.LOCATION_QUESTION:
         return _load_branch_location(session)
-    if intent_code == IntentCode.PRICE_QUESTION:
-        return _load_service_prices(session)
+    if intent_code in (IntentCode.PRICE_QUESTION, IntentCode.SERVICE_INFO):
+        service_query = (extracted_entities or {}).get("service")
+        return _load_service_prices(session, service_query=service_query)
     return None
 
 
@@ -243,8 +245,17 @@ def _load_branch_location(session: Session) -> dict[str, Any]:
     return {"branches": result}
 
 
-def _load_service_prices(session: Session) -> dict[str, Any]:
-    """Load a summary of service prices."""
+def _load_service_prices(
+    session: Session,
+    service_query: str | None = None,
+) -> dict[str, Any]:
+    """
+    Load a summary of service prices.
+
+    If service_query is provided, a targeted ilike search is performed and
+    the matching service is returned first with an explicit label so Gemini
+    does not need to fuzzy-match the patient's wording against DB names.
+    """
     from app.db.models import Service
 
     services = session.scalars(
@@ -254,10 +265,28 @@ def _load_service_prices(session: Session) -> dict[str, Any]:
     if not services:
         return {"prices": "Price list is temporarily unavailable. Please contact the administrator."}
 
-    lines = []
-    for s in services:
+    def _fmt(s: Service) -> str:
         price_str = f"£{s.base_price}" if s.base_price else "on request"
-        lines.append(f"- {s.name}: {price_str}")
+        return f"- {s.name}: {price_str}"
+
+    lines = []
+
+    if service_query:
+        pattern = f"%{service_query}%"
+        matched = session.scalars(
+            select(Service)
+            .where(Service.is_active.is_(True), Service.name.ilike(pattern))
+            .limit(5)
+        ).all()
+        if matched:
+            lines.append(f"Best match for '{service_query}':")
+            for s in matched:
+                lines.append(_fmt(s))
+            lines.append("\nFull price list:")
+
+    for s in services:
+        lines.append(_fmt(s))
+
     return {"service_prices": "\n".join(lines)}
 
 
@@ -465,7 +494,9 @@ def process_incoming_message(
     reply_text: str | None = None
 
     if route in (RouteType.AUTO_REPLY, RouteType.AUTO_REPLY_AND_COLLECT):
-        reference_data = _load_reference_data(session, classification.intent_code)
+        reference_data = _load_reference_data(
+            session, classification.intent_code, classification.extracted_entities
+        )
 
         # For handoff routes that also need a reply (e.g., emergency acknowledgement),
         # we still generate but with a different tone set by the intent context.
