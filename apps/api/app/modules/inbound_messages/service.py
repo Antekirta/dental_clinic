@@ -34,7 +34,9 @@ from app.modules.contacts.schemas import (
 )
 from app.modules.contacts.service import create_contact_from_identity, resolve_contact
 from app.modules.conversations.service import get_or_create_conversation
+from app.modules.appointment_requests.service import upsert_appointment_request
 from app.modules.inbound_messages.constants import (
+    BOOKING_INTENTS,
     ConversationStatusCode,
     HandoffTaskType,
     IntentCode,
@@ -379,6 +381,29 @@ def process_incoming_message(
         message.id,
     )
 
+    # --- 5.5. Appointment booking flow ---
+    # For booking-related intents, create/update the appointment_request and
+    # compute which fields are still missing so Gemini can ask for them.
+    missing_fields: list[str] = []
+
+    if (
+        classification.intent_code in BOOKING_INTENTS
+        and route == RouteType.AUTO_REPLY_AND_COLLECT
+    ):
+        _, missing_fields = upsert_appointment_request(
+            session,
+            contact_id=contact_id,
+            conversation_id=conversation.id,
+            channel_id=channel_id,
+            source_message_id=message.id,
+            extracted_entities=classification.extracted_entities,
+        )
+        logger.info(
+            "Booking flow: conversation=%s missing_fields=%s",
+            conversation.id,
+            missing_fields,
+        )
+
     # --- 6. Python routing logic ---
     route = classification.route_type
 
@@ -394,7 +419,20 @@ def process_incoming_message(
             conversation.priority = priority_override
             session.flush()
     elif route in (RouteType.AUTO_REPLY, RouteType.AUTO_REPLY_AND_COLLECT):
-        _update_conversation_status(session, conversation, ConversationStatusCode.CLASSIFIED)
+        if missing_fields:
+            # Still collecting data for a booking.
+            _update_conversation_status(
+                session, conversation, ConversationStatusCode.WAITING_FOR_PATIENT_DATA
+            )
+        elif classification.intent_code in BOOKING_INTENTS:
+            # All booking data collected — ready for admin to confirm.
+            _update_conversation_status(
+                session, conversation, ConversationStatusCode.BOOKING_REQUEST_CREATED
+            )
+        else:
+            _update_conversation_status(
+                session, conversation, ConversationStatusCode.CLASSIFIED
+            )
 
     # Create handoff_task if needed
     handoff_type = _INTENT_HANDOFF_TYPE.get(classification.intent_code)
@@ -425,6 +463,7 @@ def process_incoming_message(
             extracted_entities=classification.extracted_entities,
             conversation_history=history,
             reference_data=reference_data,
+            missing_fields=missing_fields or None,
         )
     elif route in (RouteType.HANDOFF_ADMIN, RouteType.HANDOFF_URGENT):
         # For handoff routes, generate an acknowledgement reply

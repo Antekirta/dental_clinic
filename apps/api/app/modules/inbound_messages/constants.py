@@ -128,6 +128,15 @@ class ConversationStatusCode:
     SPAM = "spam"
 
 
+# Intents that should trigger appointment_request create/update logic.
+BOOKING_INTENTS = frozenset({
+    IntentCode.APPOINTMENT_REQUEST,
+    IntentCode.PROVIDE_BOOKING_DATA,
+    IntentCode.APPOINTMENT_AVAILABILITY,
+    IntentCode.REPEAT_SERVICE_REQUEST,
+})
+
+
 class AppointmentRequestStatus:
     """Statuses for the appointment_request lifecycle."""
 

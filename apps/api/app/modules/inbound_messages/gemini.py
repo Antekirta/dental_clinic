@@ -27,11 +27,18 @@ from app.modules.inbound_messages.constants import (
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# SDK initialisation (lazy — runs on first import)
+# SDK initialisation — deferred to first use so tests can mock before calling
 # ---------------------------------------------------------------------------
-genai.configure(api_key=settings.gemini_api_key)
+_model: genai.GenerativeModel | None = None
 
-_model = genai.GenerativeModel(settings.gemini_model)
+
+def _get_model() -> genai.GenerativeModel:
+    """Return the shared model instance, initialising it on first call."""
+    global _model
+    if _model is None:
+        genai.configure(api_key=settings.gemini_api_key)
+        _model = genai.GenerativeModel(settings.gemini_model)
+    return _model
 
 
 # ---------------------------------------------------------------------------
@@ -189,7 +196,7 @@ def classify_message(
 
     # Call Gemini
     try:
-        response = _model.generate_content(
+        response = _get_model().generate_content(
             [
                 {"role": "user", "parts": [_CLASSIFICATION_SYSTEM_PROMPT + "\n\n" + user_prompt]},
             ],
@@ -309,7 +316,7 @@ def generate_reply(
     user_prompt = "\n\n".join(parts)
 
     try:
-        response = _model.generate_content(
+        response = _get_model().generate_content(
             [
                 {"role": "user", "parts": [_REPLY_GENERATION_SYSTEM_PROMPT + "\n\n" + user_prompt]},
             ],
