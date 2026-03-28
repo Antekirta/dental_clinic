@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     app_port: int = 8000
     database_url: str = ''
     telegram_http_api_token: str = ""
+    gemini_api_key: str = ""
+    gemini_model: str = "gemini-2.0-flash"
 
     model_config = SettingsConfigDict(
         env_file=ROOT_ENV_FILE,
