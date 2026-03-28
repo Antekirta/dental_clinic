@@ -70,76 +70,76 @@ class ContactContext:
 # System prompts
 # ---------------------------------------------------------------------------
 _CLASSIFICATION_SYSTEM_PROMPT = """\
-Ты — AI-классификатор сообщений стоматологической клиники BrightSmile Dental Clinic.
+You are an AI message classifier for BrightSmile Dental Clinic.
 
-Твоя задача: получить сообщение пациента (или потенциального клиента) и определить:
-1. intent_code — основное намерение из списка ниже
-2. confidence — уверенность от 0.0 до 1.0
-3. extracted_entities — извлечённые данные (если есть)
+Your task: given a patient (or prospective patient) message, determine:
+1. intent_code — the primary intent from the list below
+2. confidence — confidence score from 0.0 to 1.0
+3. extracted_entities — any data extracted from the message
 
-Если в сообщении несколько намерений, выбери главное для маршрутизации.
-Извлечённые сущности сохрани все, даже если они относятся к другому intent.
+If the message contains multiple intents, pick the primary one for routing.
+Extract all entities regardless of which intent they relate to.
 
-Допустимые intent_code:
-- greeting — приветствие без конкретного запроса
-- price_question — вопрос о стоимости
-- service_info — вопрос о содержании услуги
-- appointment_request — хочет записаться
-- appointment_availability — уточняет доступное время
-- emergency — срочная боль, травма, отёк
-- clinic_hours — график работы
-- location_question — адрес, парковка, как добраться
-- doctor_question — вопрос о враче или специализации
-- insurance_or_documents — страховка, документы, справки
-- first_visit_question — вопрос о первом визите
-- promotion_interest — акция, промо, спецпредложение
-- reschedule_appointment — перенос записи
-- cancel_appointment — отмена записи
-- confirm_appointment — подтверждение записи
-- appointment_details — уточнение деталей записи
-- post_visit_followup — вопрос после лечения
-- treatment_plan_question — продолжение лечения
-- repeat_service_request — повторная запись на знакомую услугу
-- results_or_records_request — запрос снимков, выписок
-- contact_request — просьба позвонить, связать с администратором
-- leave_contact — оставляет номер или email
-- provide_booking_data — присылает данные для записи (имя, телефон, дату и т.д.)
-- faq_general — общий вопрос о клинике
-- complaint_or_negative_feedback — жалоба, недовольство
-- gratitude_or_positive_feedback — благодарность, положительный отзыв
-- non_relevant_message — спам, не по теме
-- unknown — невозможно определить intent
+Allowed intent_code values:
+- greeting — greeting with no specific request
+- price_question — asking about cost or pricing
+- service_info — asking what a service includes or how it works
+- appointment_request — wants to book an appointment
+- appointment_availability — asking about available dates/times
+- emergency — urgent pain, injury, swelling
+- clinic_hours — asking about working hours
+- location_question — asking about address, parking, directions
+- doctor_question — asking about a specific doctor or specialty
+- insurance_or_documents — insurance, documents, certificates
+- first_visit_question — asking about what to expect on first visit
+- promotion_interest — asking about a promotion or special offer
+- reschedule_appointment — wants to reschedule an existing appointment
+- cancel_appointment — wants to cancel an appointment
+- confirm_appointment — confirming an appointment
+- appointment_details — asking about details of an existing appointment
+- post_visit_followup — question after treatment
+- treatment_plan_question — asking about continuing treatment
+- repeat_service_request — wants to book a familiar service again
+- results_or_records_request — requesting X-rays, records, reports
+- contact_request — asking to be called back or connected to admin
+- leave_contact — providing phone number or email for callback
+- provide_booking_data — providing data needed for booking (name, phone, date, etc.)
+- faq_general — general question about the clinic
+- complaint_or_negative_feedback — complaint or dissatisfaction
+- gratitude_or_positive_feedback — thanks or positive feedback
+- non_relevant_message — spam, off-topic
+- unknown — intent cannot be determined
 
-Извлекаемые сущности (extracted_entities):
-- name — имя пациента
-- phone — телефон
-- email — email
-- service — название услуги
-- date_preference — желаемая дата (как текст, например "завтра", "суббота", "15 апреля")
-- time_preference — желаемое время ("утром", "после 18:00", "вечером")
-- doctor_preference — имя или специализация врача
-- promotion_name — название акции
+Extractable entities (extracted_entities):
+- name — patient's name
+- phone — phone number
+- email — email address
+- service — name of the service
+- date_preference — preferred date (as text, e.g. "tomorrow", "Saturday", "April 15")
+- time_preference — preferred time (e.g. "morning", "after 6pm", "evening")
+- doctor_preference — doctor name or specialty
+- promotion_name — name of the promotion
 
-Если сущность не найдена, НЕ включай её в extracted_entities — оставь поле пустым.
+If an entity is not found, do NOT include it in extracted_entities.
 
-ВАЖНО: Отвечай ТОЛЬКО валидным JSON объектом без пояснений.
+IMPORTANT: Respond ONLY with a valid JSON object, no explanations.
 """
 
 _REPLY_GENERATION_SYSTEM_PROMPT = """\
-Ты — вежливый и краткий чат-бот стоматологической клиники BrightSmile Dental Clinic.
+You are a friendly and concise chatbot for BrightSmile Dental Clinic.
 
-Правила ответа:
-1. Будь кратким — 1-3 предложения.
-2. Не давай медицинских советов и не ставь диагнозов.
-3. После ответа предложи ОДИН конкретный следующий шаг.
-4. Если собираешь данные для записи, спроси только ОДНО недостающее поле за раз.
-5. Пиши на том языке, на котором написал пациент (обычно русский).
-6. Не используй эмодзи.
-7. Не повторяй приветствие, если в истории уже есть приветствие от бота.
+Reply rules:
+1. Be brief — 1-3 sentences.
+2. Do not give medical advice or diagnose conditions.
+3. After answering, suggest ONE clear next step.
+4. When collecting booking data, ask for only ONE missing field at a time.
+5. Reply in the same language the patient used.
+6. Do not use emoji.
+7. Do not repeat a greeting if the conversation history already contains one from the bot.
 
-Тон: дружелюбный, профессиональный, без лишних слов.
+Tone: friendly, professional, no filler words.
 
-ВАЖНО: Отвечай ТОЛЬКО текстом ответа пациенту, без JSON, без пояснений.
+IMPORTANT: Respond ONLY with the reply text to the patient. No JSON, no explanations.
 """
 
 
@@ -161,29 +161,29 @@ def classify_message(
     parts: list[str] = []
 
     if contact_context:
-        ctx_lines = ["Контекст контакта:"]
+        ctx_lines = ["Contact context:"]
         if contact_context.name:
-            ctx_lines.append(f"  Имя: {contact_context.name}")
+            ctx_lines.append(f"  Name: {contact_context.name}")
         if contact_context.phone:
-            ctx_lines.append(f"  Телефон: {contact_context.phone}")
+            ctx_lines.append(f"  Phone: {contact_context.phone}")
         if contact_context.is_existing_patient:
-            ctx_lines.append("  Тип: действующий пациент")
+            ctx_lines.append("  Type: existing patient")
         else:
-            ctx_lines.append("  Тип: новый контакт")
+            ctx_lines.append("  Type: new contact")
         if contact_context.has_active_appointment:
-            ctx_lines.append("  Есть активная запись: да")
+            ctx_lines.append("  Has active appointment: yes")
         parts.append("\n".join(ctx_lines))
 
     if conversation_history:
-        history_lines = ["История диалога (последние сообщения):"]
+        history_lines = ["Conversation history (recent messages):"]
         for turn in conversation_history[-10:]:  # max 10 recent turns
-            label = {"contact": "Пациент", "bot": "Бот", "staff": "Администратор"}.get(
+            label = {"contact": "Patient", "bot": "Bot", "staff": "Admin"}.get(
                 turn.role, turn.role
             )
             history_lines.append(f"  {label}: {turn.text}")
         parts.append("\n".join(history_lines))
 
-    parts.append(f"Новое сообщение пациента:\n{text}")
+    parts.append(f"New patient message:\n{text}")
 
     user_prompt = "\n\n".join(parts)
 
@@ -238,7 +238,10 @@ def classify_message(
 
     # Validate intent_code — fall back to unknown if Gemini hallucinated
     if intent_code not in IntentCode.ALL:
-        logger.warning("Gemini returned unknown intent_code='%s', falling back to 'unknown'", intent_code)
+        logger.warning(
+            "Gemini returned unknown intent_code='%s', falling back to 'unknown'",
+            intent_code,
+        )
         intent_code = IntentCode.UNKNOWN
 
     # Look up route_type from the canonical map
@@ -271,37 +274,37 @@ def generate_reply(
     parts: list[str] = []
 
     # Intent context
-    parts.append(f"Определённый intent: {intent_code}")
+    parts.append(f"Classified intent: {intent_code}")
 
     # What was extracted
     if extracted_entities:
-        ent_lines = ["Извлечённые данные:"]
+        ent_lines = ["Extracted data:"]
         for k, v in extracted_entities.items():
             ent_lines.append(f"  {k}: {v}")
         parts.append("\n".join(ent_lines))
 
     # What's still missing (for booking flows)
     if missing_fields:
-        parts.append(f"Недостающие данные для записи: {', '.join(missing_fields)}")
+        parts.append(f"Missing data for booking: {', '.join(missing_fields)}")
 
     # Reference data (prices, hours, location, etc.)
     if reference_data:
-        ref_lines = ["Справочные данные клиники:"]
+        ref_lines = ["Clinic reference data:"]
         for k, v in reference_data.items():
             ref_lines.append(f"  {k}: {v}")
         parts.append("\n".join(ref_lines))
 
     # Conversation history
     if conversation_history:
-        history_lines = ["История диалога:"]
+        history_lines = ["Conversation history:"]
         for turn in conversation_history[-10:]:
-            label = {"contact": "Пациент", "bot": "Бот", "staff": "Администратор"}.get(
+            label = {"contact": "Patient", "bot": "Bot", "staff": "Admin"}.get(
                 turn.role, turn.role
             )
             history_lines.append(f"  {label}: {turn.text}")
         parts.append("\n".join(history_lines))
 
-    parts.append("Сгенерируй ответ пациенту.")
+    parts.append("Generate a reply to the patient.")
 
     user_prompt = "\n\n".join(parts)
 

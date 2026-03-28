@@ -190,7 +190,7 @@ def _load_branch_hours(session: Session) -> dict[str, Any]:
 
     branch = session.scalar(select(Branch).where(Branch.is_active.is_(True)).limit(1))
     if branch is None:
-        return {"clinic_hours": "Информация о графике работы временно недоступна."}
+        return {"clinic_hours": "Working hours information is temporarily unavailable."}
 
     hours = session.scalars(
         select(BranchHour)
@@ -198,16 +198,16 @@ def _load_branch_hours(session: Session) -> dict[str, Any]:
         .order_by(BranchHour.weekday)
     ).all()
 
-    day_names = {0: "Пн", 1: "Вт", 2: "Ср", 3: "Чт", 4: "Пт", 5: "Сб", 6: "Вс"}
+    day_names = {0: "Mon", 1: "Tue", 2: "Wed", 3: "Thu", 4: "Fri", 5: "Sat", 6: "Sun"}
     lines = []
     for h in hours:
         day = day_names.get(h.weekday, str(h.weekday))
         if not h.is_active:
-            lines.append(f"{day}: выходной")
+            lines.append(f"{day}: closed")
         else:
             lines.append(f"{day}: {h.open_time:%H:%M}–{h.close_time:%H:%M}")
 
-    return {"clinic_name": branch.name, "clinic_hours": "\n".join(lines) if lines else "Не указано"}
+    return {"clinic_name": branch.name, "clinic_hours": "\n".join(lines) if lines else "Not specified"}
 
 
 def _load_branch_location(session: Session) -> dict[str, Any]:
@@ -216,7 +216,7 @@ def _load_branch_location(session: Session) -> dict[str, Any]:
 
     branch = session.scalar(select(Branch).where(Branch.is_active.is_(True)).limit(1))
     if branch is None:
-        return {"location": "Информация временно недоступна."}
+        return {"location": "Location information is temporarily unavailable."}
 
     data: dict[str, Any] = {"clinic_name": branch.name}
     if branch.address:
@@ -239,11 +239,11 @@ def _load_service_prices(session: Session) -> dict[str, Any]:
     ).all()
 
     if not services:
-        return {"prices": "Прайс-лист временно недоступен. Уточните у администратора."}
+        return {"prices": "Price list is temporarily unavailable. Please contact the administrator."}
 
     lines = []
     for s in services:
-        price_str = f"{s.base_price} руб." if s.base_price else "по запросу"
+        price_str = f"£{s.base_price}" if s.base_price else "on request"
         lines.append(f"- {s.name}: {price_str}")
     return {"service_prices": "\n".join(lines)}
 
@@ -402,7 +402,7 @@ def process_incoming_message(
         task_priority = _INTENT_PRIORITY.get(classification.intent_code, Priority.NORMAL)
         summary = (
             f"Intent: {classification.intent_code}. "
-            f"Сообщение: {(unified.message.normalized_text or '')[:200]}"
+            f"Message: {(unified.message.normalized_text or '')[:200]}"
         )
         _create_handoff_task(
             session,
