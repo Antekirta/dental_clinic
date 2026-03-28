@@ -18,10 +18,10 @@ from app.modules.inbound_messages.constants import IntentCode, RouteType, INTENT
 
 # ---------------------------------------------------------------------------
 # We must patch the module-level SDK init before importing gemini.py,
-# because it runs genai.configure() and GenerativeModel() on import.
+# because it creates a genai.Client() on first use.
 # ---------------------------------------------------------------------------
 
-_mock_model = MagicMock()
+_mock_client = MagicMock()
 
 
 @pytest.fixture(autouse=True)
@@ -29,13 +29,13 @@ def _patch_genai(monkeypatch):
     """Prevent real Gemini SDK initialisation on every test."""
     import app.modules.inbound_messages.gemini as mod
 
-    monkeypatch.setattr(mod, "_get_model", lambda: _mock_model)
-    _mock_model.reset_mock()
-    _mock_model.generate_content.side_effect = None
+    monkeypatch.setattr(mod, "_get_client", lambda: _mock_client)
+    _mock_client.reset_mock()
+    _mock_client.models.generate_content.side_effect = None
 
 
-def _get_model() -> MagicMock:
-    return _mock_model
+def _get_mock_client() -> MagicMock:
+    return _mock_client
 
 
 # ---------------------------------------------------------------------------
@@ -67,7 +67,7 @@ class TestClassifyMessage:
     def test_greeting_classification(self):
         from app.modules.inbound_messages.gemini import classify_message
 
-        _get_model().generate_content.return_value = _make_response(
+        _get_mock_client().models.generate_content.return_value = _make_response(
             _classification_json("greeting", 0.98)
         )
 
@@ -82,7 +82,7 @@ class TestClassifyMessage:
         from app.modules.inbound_messages.gemini import classify_message
 
         entities = {"service": "cleaning", "date_preference": "tomorrow"}
-        _get_model().generate_content.return_value = _make_response(
+        _get_mock_client().models.generate_content.return_value = _make_response(
             _classification_json("appointment_request", 0.92, entities)
         )
 
@@ -95,7 +95,7 @@ class TestClassifyMessage:
     def test_emergency_routes_to_handoff_urgent(self):
         from app.modules.inbound_messages.gemini import classify_message
 
-        _get_model().generate_content.return_value = _make_response(
+        _get_mock_client().models.generate_content.return_value = _make_response(
             _classification_json("emergency", 0.99)
         )
 
@@ -108,7 +108,7 @@ class TestClassifyMessage:
         """Route type is always looked up from INTENT_ROUTE_MAP, never from Gemini."""
         from app.modules.inbound_messages.gemini import classify_message
 
-        _get_model().generate_content.return_value = _make_response(
+        _get_mock_client().models.generate_content.return_value = _make_response(
             _classification_json("clinic_hours", 0.85)
         )
 
@@ -126,7 +126,7 @@ class TestClassifyMessage:
             "confidence": 0.9,
             "extracted_entities": {"name": "", "phone": "", "service": "cleaning"},
         })
-        _get_model().generate_content.return_value = _make_response(raw)
+        _get_mock_client().models.generate_content.return_value = _make_response(raw)
 
         result = classify_message("Hi, I need a cleaning", conversation_history=[])
 
@@ -144,7 +144,7 @@ class TestClassifyMessageFallback:
     def test_api_exception_returns_unknown(self):
         from app.modules.inbound_messages.gemini import classify_message
 
-        _get_model().generate_content.side_effect = RuntimeError("API quota exceeded")
+        _get_mock_client().models.generate_content.side_effect = RuntimeError("API quota exceeded")
 
         result = classify_message("Hello", conversation_history=[])
 
@@ -155,7 +155,7 @@ class TestClassifyMessageFallback:
     def test_invalid_json_returns_unknown(self):
         from app.modules.inbound_messages.gemini import classify_message
 
-        _get_model().generate_content.return_value = _make_response("not json at all")
+        _get_mock_client().models.generate_content.return_value = _make_response("not json at all")
 
         result = classify_message("Hello", conversation_history=[])
 
@@ -166,7 +166,7 @@ class TestClassifyMessageFallback:
         """If Gemini returns an intent_code not in our taxonomy, fall back."""
         from app.modules.inbound_messages.gemini import classify_message
 
-        _get_model().generate_content.return_value = _make_response(
+        _get_mock_client().models.generate_content.return_value = _make_response(
             _classification_json("book_haircut", 0.88)
         )
 
@@ -188,7 +188,7 @@ class TestClassifyMessageContext:
             ContactContext,
         )
 
-        _get_model().generate_content.return_value = _make_response(
+        _get_mock_client().models.generate_content.return_value = _make_response(
             _classification_json("greeting", 0.9)
         )
 
@@ -203,8 +203,8 @@ class TestClassifyMessageContext:
             ),
         )
 
-        call_args = _get_model().generate_content.call_args
-        prompt_text = call_args[0][0][0]["parts"][0]
+        call_args = _get_mock_client().models.generate_content.call_args
+        prompt_text = call_args.kwargs["contents"]
         assert "John" in prompt_text
         assert "existing patient" in prompt_text
         assert "Has active appointment: yes" in prompt_text
@@ -215,7 +215,7 @@ class TestClassifyMessageContext:
             ConversationTurn,
         )
 
-        _get_model().generate_content.return_value = _make_response(
+        _get_mock_client().models.generate_content.return_value = _make_response(
             _classification_json("appointment_request", 0.9)
         )
 
@@ -225,8 +225,8 @@ class TestClassifyMessageContext:
         ]
         classify_message("I want to book an appointment", conversation_history=history)
 
-        call_args = _get_model().generate_content.call_args
-        prompt_text = call_args[0][0][0]["parts"][0]
+        call_args = _get_mock_client().models.generate_content.call_args
+        prompt_text = call_args.kwargs["contents"]
         assert "Patient: Hello" in prompt_text
         assert "Bot: Hi! How can I help?" in prompt_text
 
@@ -236,15 +236,15 @@ class TestClassifyMessageContext:
             ConversationTurn,
         )
 
-        _get_model().generate_content.return_value = _make_response(
+        _get_mock_client().models.generate_content.return_value = _make_response(
             _classification_json("greeting", 0.9)
         )
 
         history = [ConversationTurn(role="contact", text=f"msg {i}") for i in range(20)]
         classify_message("Latest message", conversation_history=history)
 
-        call_args = _get_model().generate_content.call_args
-        prompt_text = call_args[0][0][0]["parts"][0]
+        call_args = _get_mock_client().models.generate_content.call_args
+        prompt_text = call_args.kwargs["contents"]
         # Only last 10 should appear
         assert "msg 10" in prompt_text
         assert "msg 19" in prompt_text
@@ -260,7 +260,7 @@ class TestGenerateReply:
     def test_returns_reply_text(self):
         from app.modules.inbound_messages.gemini import generate_reply
 
-        _get_model().generate_content.return_value = _make_response(
+        _get_mock_client().models.generate_content.return_value = _make_response(
             "Hello! How can I help you today?"
         )
 
@@ -275,7 +275,7 @@ class TestGenerateReply:
     def test_strips_whitespace(self):
         from app.modules.inbound_messages.gemini import generate_reply
 
-        _get_model().generate_content.return_value = _make_response(
+        _get_mock_client().models.generate_content.return_value = _make_response(
             "  Here are our hours.  \n"
         )
 
@@ -290,7 +290,7 @@ class TestGenerateReply:
     def test_reference_data_included_in_prompt(self):
         from app.modules.inbound_messages.gemini import generate_reply
 
-        _get_model().generate_content.return_value = _make_response("We're open Mon-Fri 9-17.")
+        _get_mock_client().models.generate_content.return_value = _make_response("We're open Mon-Fri 9-17.")
 
         generate_reply(
             intent_code="clinic_hours",
@@ -299,15 +299,15 @@ class TestGenerateReply:
             reference_data={"clinic_hours": "Mon-Fri: 09:00-17:00"},
         )
 
-        call_args = _get_model().generate_content.call_args
-        prompt_text = call_args[0][0][0]["parts"][0]
+        call_args = _get_mock_client().models.generate_content.call_args
+        prompt_text = call_args.kwargs["contents"]
         assert "Mon-Fri: 09:00-17:00" in prompt_text
         assert "Clinic reference data:" in prompt_text
 
     def test_missing_fields_included_in_prompt(self):
         from app.modules.inbound_messages.gemini import generate_reply
 
-        _get_model().generate_content.return_value = _make_response("What date works for you?")
+        _get_mock_client().models.generate_content.return_value = _make_response("What date works for you?")
 
         generate_reply(
             intent_code="appointment_request",
@@ -316,14 +316,14 @@ class TestGenerateReply:
             missing_fields=["date_preference", "phone"],
         )
 
-        call_args = _get_model().generate_content.call_args
-        prompt_text = call_args[0][0][0]["parts"][0]
+        call_args = _get_mock_client().models.generate_content.call_args
+        prompt_text = call_args.kwargs["contents"]
         assert "Missing data for booking: date_preference, phone" in prompt_text
 
     def test_extracted_entities_in_prompt(self):
         from app.modules.inbound_messages.gemini import generate_reply
 
-        _get_model().generate_content.return_value = _make_response("Got it!")
+        _get_mock_client().models.generate_content.return_value = _make_response("Got it!")
 
         generate_reply(
             intent_code="appointment_request",
@@ -331,8 +331,8 @@ class TestGenerateReply:
             conversation_history=[],
         )
 
-        call_args = _get_model().generate_content.call_args
-        prompt_text = call_args[0][0][0]["parts"][0]
+        call_args = _get_mock_client().models.generate_content.call_args
+        prompt_text = call_args.kwargs["contents"]
         assert "service: whitening" in prompt_text
         assert "name: Alice" in prompt_text
 
@@ -346,7 +346,7 @@ class TestGenerateReplyErrors:
     def test_api_exception_returns_none(self):
         from app.modules.inbound_messages.gemini import generate_reply
 
-        _get_model().generate_content.side_effect = RuntimeError("network error")
+        _get_mock_client().models.generate_content.side_effect = RuntimeError("network error")
 
         result = generate_reply(
             intent_code="greeting",
@@ -359,7 +359,7 @@ class TestGenerateReplyErrors:
     def test_empty_response_returns_none(self):
         from app.modules.inbound_messages.gemini import generate_reply
 
-        _get_model().generate_content.return_value = _make_response("")
+        _get_mock_client().models.generate_content.return_value = _make_response("")
 
         result = generate_reply(
             intent_code="greeting",
@@ -372,7 +372,7 @@ class TestGenerateReplyErrors:
     def test_whitespace_only_response_returns_none(self):
         from app.modules.inbound_messages.gemini import generate_reply
 
-        _get_model().generate_content.return_value = _make_response("   \n  ")
+        _get_mock_client().models.generate_content.return_value = _make_response("   \n  ")
 
         result = generate_reply(
             intent_code="greeting",

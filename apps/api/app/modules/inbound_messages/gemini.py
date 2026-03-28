@@ -15,7 +15,8 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any
 
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 
 from app.config import settings
 from app.modules.inbound_messages.constants import (
@@ -29,16 +30,15 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # SDK initialisation — deferred to first use so tests can mock before calling
 # ---------------------------------------------------------------------------
-_model: genai.GenerativeModel | None = None
+_client: genai.Client | None = None
 
 
-def _get_model() -> genai.GenerativeModel:
-    """Return the shared model instance, initialising it on first call."""
-    global _model
-    if _model is None:
-        genai.configure(api_key=settings.gemini_api_key)
-        _model = genai.GenerativeModel(settings.gemini_model)
-    return _model
+def _get_client() -> genai.Client:
+    """Return the shared client instance, initialising it on first call."""
+    global _client
+    if _client is None:
+        _client = genai.Client(api_key=settings.gemini_api_key)
+    return _client
 
 
 # ---------------------------------------------------------------------------
@@ -196,11 +196,10 @@ def classify_message(
 
     # Call Gemini
     try:
-        response = _get_model().generate_content(
-            [
-                {"role": "user", "parts": [_CLASSIFICATION_SYSTEM_PROMPT + "\n\n" + user_prompt]},
-            ],
-            generation_config=genai.GenerationConfig(
+        response = _get_client().models.generate_content(
+            model=settings.gemini_model,
+            contents=_CLASSIFICATION_SYSTEM_PROMPT + "\n\n" + user_prompt,
+            config=types.GenerateContentConfig(
                 response_mime_type="application/json",
                 response_schema={
                     "type": "object",
@@ -316,11 +315,10 @@ def generate_reply(
     user_prompt = "\n\n".join(parts)
 
     try:
-        response = _get_model().generate_content(
-            [
-                {"role": "user", "parts": [_REPLY_GENERATION_SYSTEM_PROMPT + "\n\n" + user_prompt]},
-            ],
-            generation_config=genai.GenerationConfig(
+        response = _get_client().models.generate_content(
+            model=settings.gemini_model,
+            contents=_REPLY_GENERATION_SYSTEM_PROMPT + "\n\n" + user_prompt,
+            config=types.GenerateContentConfig(
                 temperature=0.4,
                 max_output_tokens=500,
             ),
