@@ -300,9 +300,9 @@ class TestGenerateReply:
         )
 
         call_args = _get_mock_client().models.generate_content.call_args
-        prompt_text = call_args.kwargs["contents"]
-        assert "Mon-Fri: 09:00-17:00" in prompt_text
-        assert "Clinic reference data:" in prompt_text
+        system_instruction = call_args.kwargs["config"].system_instruction
+        assert "Mon-Fri: 09:00-17:00" in system_instruction
+        assert "Clinic reference data:" in system_instruction
 
     def test_missing_fields_included_in_prompt(self):
         from app.modules.inbound_messages.gemini import generate_reply
@@ -317,8 +317,8 @@ class TestGenerateReply:
         )
 
         call_args = _get_mock_client().models.generate_content.call_args
-        prompt_text = call_args.kwargs["contents"]
-        assert "Missing data for booking: date_preference, phone" in prompt_text
+        system_instruction = call_args.kwargs["config"].system_instruction
+        assert "Missing booking fields: date_preference, phone" in system_instruction
 
     def test_extracted_entities_in_prompt(self):
         from app.modules.inbound_messages.gemini import generate_reply
@@ -332,9 +332,9 @@ class TestGenerateReply:
         )
 
         call_args = _get_mock_client().models.generate_content.call_args
-        prompt_text = call_args.kwargs["contents"]
-        assert "service: whitening" in prompt_text
-        assert "name: Alice" in prompt_text
+        system_instruction = call_args.kwargs["config"].system_instruction
+        assert "service: whitening" in system_instruction
+        assert "name: Alice" in system_instruction
 
 
 # ---------------------------------------------------------------------------

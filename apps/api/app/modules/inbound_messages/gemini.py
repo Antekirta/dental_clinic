@@ -278,49 +278,70 @@ def generate_reply(
 
     Only called for auto_reply and auto_reply_and_collect routes.
     Returns the reply text, or None if the call fails.
+
+    Uses native multi-turn contents so Gemini treats the history as actual
+    conversation context rather than few-shot examples.  Per-message context
+    (intent, reference data) goes into system_instruction so it cannot be
+    overridden by history patterns.
     """
-    parts: list[str] = []
+    # Build system instruction: static rules + per-message context
+    sys_parts = [_REPLY_GENERATION_SYSTEM_PROMPT, f"\nCurrent message intent: {intent_code}"]
 
-    # Intent context
-    parts.append(f"Classified intent: {intent_code}")
-
-    # What was extracted
     if extracted_entities:
-        ent_lines = ["Extracted data:"]
+        ent_lines = ["Extracted entities:"]
         for k, v in extracted_entities.items():
             ent_lines.append(f"  {k}: {v}")
-        parts.append("\n".join(ent_lines))
+        sys_parts.append("\n".join(ent_lines))
 
-    # What's still missing (for booking flows)
     if missing_fields:
-        parts.append(f"Missing data for booking: {', '.join(missing_fields)}")
+        sys_parts.append(f"Missing booking fields: {', '.join(missing_fields)}")
 
-    # Reference data (prices, hours, location, etc.)
     if reference_data:
         ref_lines = ["Clinic reference data:"]
         for k, v in reference_data.items():
             ref_lines.append(f"  {k}: {v}")
-        parts.append("\n".join(ref_lines))
+        sys_parts.append("\n".join(ref_lines))
 
-    # Conversation history
-    if conversation_history:
-        history_lines = ["Conversation history:"]
-        for turn in conversation_history[-10:]:
-            label = {"contact": "Patient", "bot": "Bot", "staff": "Admin"}.get(
-                turn.role, turn.role
-            )
-            history_lines.append(f"  {label}: {turn.text}")
-        parts.append("\n".join(history_lines))
+    sys_parts.append(
+        f"Respond to the patient's '{intent_code}' message only. "
+        "Do not bring up topics not present in the patient's last message."
+    )
 
-    parts.append("Generate a reply to the patient.")
+    system_instruction = "\n\n".join(sys_parts)
 
-    user_prompt = "\n\n".join(parts)
+    # Build multi-turn contents from conversation history.
+    # contact → "user", bot/staff → "model"
+    role_map = {"contact": "user", "bot": "model", "staff": "model"}
+    raw_turns = conversation_history[-10:]
+
+    # Merge consecutive same-role turns (can happen at history boundaries)
+    merged: list[tuple[str, str]] = []
+    for turn in raw_turns:
+        role = role_map.get(turn.role, "user")
+        if merged and merged[-1][0] == role:
+            merged[-1] = (role, merged[-1][1] + "\n" + turn.text)
+        else:
+            merged.append((role, turn.text))
+
+    # Gemini requires turns to start with "user"
+    if merged and merged[0][0] == "model":
+        merged.insert(0, ("user", "(conversation start)"))
+
+    # Gemini requires turns to end with "user"
+    if not merged or merged[-1][0] == "model":
+        merged.append(("user", "(please respond)"))
+
+    contents = [
+        types.Content(role=role, parts=[types.Part(text=text)])
+        for role, text in merged
+    ]
 
     try:
         response = _get_client().models.generate_content(
             model=settings.gemini_model,
-            contents=_REPLY_GENERATION_SYSTEM_PROMPT + "\n\n" + user_prompt,
+            contents=contents,
             config=types.GenerateContentConfig(
+                system_instruction=system_instruction,
                 temperature=0.4,
                 max_output_tokens=500,
             ),
