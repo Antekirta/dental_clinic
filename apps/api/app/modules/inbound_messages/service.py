@@ -193,9 +193,12 @@ def _load_reference_data(
         return _load_branch_hours(session)
     if intent_code == IntentCode.LOCATION_QUESTION:
         return _load_branch_location(session)
-    if intent_code in (IntentCode.PRICE_QUESTION, IntentCode.SERVICE_INFO):
+    if intent_code == IntentCode.PRICE_QUESTION:
         service_query = (extracted_entities or {}).get("service")
         return _load_service_prices(session, service_query=service_query)
+    if intent_code == IntentCode.SERVICE_INFO:
+        service_query = (extracted_entities or {}).get("service")
+        return _load_service_details(session, service_query=service_query)
     return None
 
 
@@ -299,6 +302,55 @@ def _load_service_prices(
         lines.append(_fmt(s))
 
     return {"service_prices": "\n".join(lines)}
+
+
+def _load_service_details(
+    session: Session,
+    service_query: str | None = None,
+) -> dict[str, Any]:
+    """
+    Load service details (description, duration, price) for service_info intent.
+
+    Unlike _load_service_prices(), this includes description and duration_min so
+    Gemini can answer questions about what a service involves, how long it takes,
+    and how many sessions are typically needed — not just the price.
+    """
+    from app.db.models import Service
+
+    def _fmt(s: Service) -> str:
+        price_str = f"£{s.base_price}" if s.base_price else "on request"
+        duration_str = f"{s.duration_min} min per session"
+        desc_str = f" — {s.description}" if s.description else ""
+        return f"- {s.name}: {duration_str}, {price_str}{desc_str}"
+
+    lines: list[str] = []
+
+    if service_query:
+        pattern = f"%{service_query}%"
+        matched = session.scalars(
+            select(Service)
+            .where(Service.is_active.is_(True), Service.name.ilike(pattern))
+            .limit(5)
+        ).all()
+        if matched:
+            lines.append(f"Service details for '{service_query}':")
+            for s in matched:
+                lines.append(_fmt(s))
+            return {"service_details": "\n".join(lines)}
+
+    # No specific match — return all active services
+    services = session.scalars(
+        select(Service).where(Service.is_active.is_(True)).limit(30)
+    ).all()
+
+    if not services:
+        return {"service_details": "Service information is temporarily unavailable. Please contact the clinic directly."}
+
+    lines.append("Available services:")
+    for s in services:
+        lines.append(_fmt(s))
+
+    return {"service_details": "\n".join(lines)}
 
 
 # ---------------------------------------------------------------------------
