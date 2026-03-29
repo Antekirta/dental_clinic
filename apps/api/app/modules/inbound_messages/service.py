@@ -613,6 +613,31 @@ def process_incoming_message(
             reference_data=None,
         )
 
+    # If Gemini flagged that it could not answer from reference data, strip the
+    # token and create an admin handoff so a human can follow up.
+    _NEEDS_HUMAN_TOKEN = "[NEEDS_HUMAN]"
+    if reply_text and _NEEDS_HUMAN_TOKEN in reply_text:
+        reply_text = reply_text.replace(_NEEDS_HUMAN_TOKEN, "").strip()
+        logger.info(
+            "Gemini flagged insufficient data for intent=%s — creating admin handoff",
+            classification.intent_code,
+        )
+        _update_conversation_status(
+            session, conversation, ConversationStatusCode.WAITING_FOR_ADMIN
+        )
+        if not handoff_type:
+            _create_handoff_task(
+                session,
+                conversation_id=conversation.id,
+                task_type=HandoffTaskType.ADMIN_FOLLOWUP,
+                priority=Priority.NORMAL,
+                summary=(
+                    f"Bot could not answer patient's question "
+                    f"(intent={classification.intent_code}). "
+                    f"Message: {(unified.message.normalized_text or '')[:200]}"
+                ),
+            )
+
     # If reply generation failed on an auto_reply route (e.g. Gemini 503),
     # escalate to admin so the patient is not silently ignored, and send a
     # static fallback message so they receive an immediate acknowledgement.
