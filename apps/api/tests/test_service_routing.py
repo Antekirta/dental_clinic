@@ -306,8 +306,14 @@ class TestEdgeCases:
 
         mocks["session"].commit.assert_called_once()
 
-    def test_none_reply_skips_send(self, mocks):
-        from app.modules.inbound_messages.service import process_incoming_message
+    def test_none_reply_sends_fallback_and_escalates(self, mocks):
+        """When generate_reply() returns None on an AUTO_REPLY route, the bot must
+        send the static fallback message and create an admin handoff task instead
+        of silently dropping the conversation."""
+        from app.modules.inbound_messages.service import (
+            _FALLBACK_REPLY,
+            process_incoming_message,
+        )
 
         mocks["classify"].return_value = _classification(
             IntentCode.GREETING, RouteType.AUTO_REPLY
@@ -316,7 +322,19 @@ class TestEdgeCases:
 
         process_incoming_message(mocks["session"], _make_unified("Hello"))
 
-        mocks["send_tg"].assert_not_called()
+        # Fallback message must be sent
+        mocks["send_tg"].assert_called_once_with(chat_id="12345", text=_FALLBACK_REPLY)
+
+        # A HandoffTask must have been added to the session
+        added_objects = [
+            call_args[0][0]
+            for call_args in mocks["session"].add.call_args_list
+        ]
+        from app.db.models import HandoffTask
+        handoff_tasks = [o for o in added_objects if isinstance(o, HandoffTask)]
+        assert handoff_tasks, "Expected a HandoffTask to be created when reply is None"
+        task = handoff_tasks[-1]
+        assert task.task_type == HandoffTaskType.ADMIN_FOLLOWUP
 
     def test_new_contact_is_created_when_not_found(self, mocks):
         from app.modules.inbound_messages.service import process_incoming_message

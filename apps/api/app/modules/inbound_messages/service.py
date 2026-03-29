@@ -60,6 +60,17 @@ logger = logging.getLogger(__name__)
 
 _SUPPORTED_MESSAGE_TYPES = {"text", "image", "file", "audio"}
 
+# Gemini confidence below this value is treated as "I don't know" and the
+# conversation is handed off to a live operator instead of the bot replying.
+_LOW_CONFIDENCE_THRESHOLD = 0.5
+
+# Sent to the patient when the bot cannot produce a reply (Gemini failure or
+# low-confidence override) so they are never left without an acknowledgement.
+_FALLBACK_REPLY = (
+    "Thank you for your message. We were unable to process your request "
+    "automatically — a member of our team will be in touch shortly."
+)
+
 # Maps intent → handoff_task type for intents that require escalation.
 _INTENT_HANDOFF_TYPE: dict[str, str] = {
     IntentCode.EMERGENCY: HandoffTaskType.URGENT_CASE,
@@ -427,6 +438,25 @@ def process_incoming_message(
     route = classification.route_type
     missing_fields: list[str] = []
 
+    # If Gemini confidence is too low to trust, override to handoff_admin so a
+    # live operator handles the message instead of the bot guessing.
+    # We preserve the original route_type in the ConversationIntent record for
+    # audit purposes; the local `route` variable drives the actual behavior.
+    low_confidence_handoff = (
+        classification.confidence < _LOW_CONFIDENCE_THRESHOLD
+        and route not in (RouteType.HANDOFF_URGENT, RouteType.HANDOFF_ADMIN)
+    )
+    if low_confidence_handoff:
+        logger.warning(
+            "Low confidence (%.2f < %.2f) for intent=%s — overriding route %s → %s",
+            classification.confidence,
+            _LOW_CONFIDENCE_THRESHOLD,
+            classification.intent_code,
+            route,
+            RouteType.HANDOFF_ADMIN,
+        )
+        route = RouteType.HANDOFF_ADMIN
+
     if (
         classification.intent_code in BOOKING_INTENTS
         and route == RouteType.AUTO_REPLY_AND_COLLECT
@@ -490,6 +520,21 @@ def process_incoming_message(
             summary=summary,
         )
 
+    # Low-confidence override: the intent had no specific handoff type, so
+    # create a generic admin_followup task to ensure nothing is missed.
+    if low_confidence_handoff and not handoff_type:
+        _create_handoff_task(
+            session,
+            conversation_id=conversation.id,
+            task_type=HandoffTaskType.ADMIN_FOLLOWUP,
+            priority=Priority.NORMAL,
+            summary=(
+                f"Low confidence classification ({classification.confidence:.2f}): "
+                f"intent={classification.intent_code}. "
+                f"Message: {(unified.message.normalized_text or '')[:200]}"
+            ),
+        )
+
     # --- 7. Generate reply via Gemini (Call 2) ---
     reply_text: str | None = None
 
@@ -515,6 +560,29 @@ def process_incoming_message(
             conversation_history=history,
             reference_data=None,
         )
+
+    # If reply generation failed on an auto_reply route (e.g. Gemini 503),
+    # escalate to admin so the patient is not silently ignored, and send a
+    # static fallback message so they receive an immediate acknowledgement.
+    if reply_text is None and route in (RouteType.AUTO_REPLY, RouteType.AUTO_REPLY_AND_COLLECT):
+        logger.warning(
+            "Reply generation returned None for intent=%s — escalating to admin handoff",
+            classification.intent_code,
+        )
+        _update_conversation_status(
+            session, conversation, ConversationStatusCode.WAITING_FOR_ADMIN
+        )
+        _create_handoff_task(
+            session,
+            conversation_id=conversation.id,
+            task_type=HandoffTaskType.ADMIN_FOLLOWUP,
+            priority=Priority.NORMAL,
+            summary=(
+                f"Bot failed to generate a reply for intent={classification.intent_code}. "
+                f"Message: {(unified.message.normalized_text or '')[:200]}"
+            ),
+        )
+        reply_text = _FALLBACK_REPLY
 
     # --- 8. Send reply and store outbound message ---
     if reply_text:
