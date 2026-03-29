@@ -2,31 +2,29 @@
 """
 Intent testing loop for BrightSmile chatbot.
 
-Tests all 28 intents end-to-end using the real Gemini API and local database.
-Telegram sends are mocked so no real messages are dispatched.
-Each test runs in a DB transaction that is rolled back afterwards — no
-test data is permanently written to the database.
+Runs 10–20 messages per intent against the real Gemini API and local database,
+then writes a self-contained HTML report table to scripts/intent_test_results.html.
+
+Telegram sends are mocked — no real messages are dispatched.
+Each test runs inside a DB transaction that is rolled back afterwards.
 
 Usage:
-    python scripts/intent_test_loop.py                    # run all 28 intents
-    python scripts/intent_test_loop.py --intent greeting  # run one intent
-    python scripts/intent_test_loop.py --verbose          # print full reply text
-    python scripts/intent_test_loop.py --fail-fast        # stop after first failure
-    python scripts/intent_test_loop.py --no-rollback      # keep test rows (for debugging)
+    python scripts/intent_test_loop.py                    # all 28 intents
+    python scripts/intent_test_loop.py --intent greeting  # one intent only
 """
 from __future__ import annotations
 
 import argparse
+import html
 import io
 import sys
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import patch
 
-# Ensure stdout/stderr can handle Unicode box-drawing and Cyrillic characters
-# regardless of the terminal's default encoding (e.g. cp1251 on Windows).
+# Ensure stdout/stderr handle Unicode regardless of terminal encoding (e.g. cp1251).
 if hasattr(sys.stdout, "reconfigure"):
     try:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[union-attr]
@@ -34,11 +32,10 @@ if hasattr(sys.stdout, "reconfigure"):
     except (AttributeError, io.UnsupportedOperation):
         pass
 
-# Allow sibling imports from the scripts directory
+# Allow sibling imports from the scripts directory.
 sys.path.insert(0, str(Path(__file__).parent))
 
 from intent_test_cases import INTENT_TEST_CASES, IntentTestCase  # noqa: E402
-from intent_validators import CheckResult, run_checks  # noqa: E402
 
 from app.db.models import ConversationIntent  # noqa: E402
 from app.db.session import SessionLocal  # noqa: E402
@@ -54,67 +51,65 @@ from app.modules.inbound_messages.schemas import (  # noqa: E402
 )
 from app.modules.inbound_messages.service import process_incoming_message  # noqa: E402
 
+_REPORT_PATH = Path(__file__).parent / "intent_test_results.html"
 
-# ── ANSI colours ─────────────────────────────────────────────────────────────
-_GREEN  = "\033[92m"
-_RED    = "\033[91m"
-_YELLOW = "\033[93m"
-_CYAN   = "\033[96m"
-_BOLD   = "\033[1m"
-_DIM    = "\033[2m"
-_RESET  = "\033[0m"
-_LINE   = "━" * 58
+# ── ANSI colours for terminal progress ───────────────────────────────────────
+_GREEN = "\033[92m"
+_RED   = "\033[91m"
+_DIM   = "\033[2m"
+_BOLD  = "\033[1m"
+_RESET = "\033[0m"
 
 
-# ── Data classes ─────────────────────────────────────────────────────────────
+# ── Data class ────────────────────────────────────────────────────────────────
 
 @dataclass
-class TestResult:
-    test_case: IntentTestCase
-    classified_intent: str | None = None
-    classified_route: str | None = None
-    confidence: float | None = None
-    reply_text: str | None = None
-    check_results: list[CheckResult] = field(default_factory=list)
+class RowResult:
+    intent_code: str
+    expected_intent: str
+    expected_route: str
+    question: str
+    answer: str | None
+    classified_intent: str | None
+    classified_route: str | None
+    confidence: float | None
     error: str | None = None
-    elapsed_s: float = 0.0
 
     @property
-    def passed(self) -> bool:
-        if self.error:
-            return False
-        return all(cr.passed for cr in self.check_results)
+    def intent_match(self) -> bool:
+        return self.classified_intent == self.expected_intent
 
     @property
-    def n_passed(self) -> int:
-        return sum(1 for cr in self.check_results if cr.passed)
+    def route_match(self) -> bool:
+        return self.classified_route == self.expected_route
 
     @property
-    def n_total(self) -> int:
-        return len(self.check_results)
+    def fully_passed(self) -> bool:
+        return (
+            self.error is None
+            and self.intent_match
+            and self.route_match
+            and bool(self.answer)  # reply must have been generated and sent
+        )
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# ── Test runner ───────────────────────────────────────────────────────────────
 
 def _build_unified(text: str, seq: int) -> UnifiedIncomingMessage:
-    """Construct a minimal UnifiedIncomingMessage suitable for testing."""
     now = datetime.now(UTC)
-    external_id = f"test_loop_tg_{seq}"
+    eid = f"test_loop_{seq}"
     return UnifiedIncomingMessage(
         event=EventPayload(
-            event_id=f"telegram:test_{seq}",
+            event_id=f"telegram:{eid}",
             received_at=now,
-            deduplication_key=f"telegram:test_{seq}",
+            deduplication_key=f"telegram:{eid}",
             source_system="telegram",
         ),
         channel=ChannelPayload(code="telegram"),
-        contact=ContactPayload(
-            external_id=external_id,
-            display_name="Test Loop User",
-        ),
-        conversation=ConversationPayload(external_chat_id=external_id),
+        contact=ContactPayload(external_id=eid, display_name="Test User"),
+        conversation=ConversationPayload(external_chat_id=eid),
         message=MessagePayload(
-            external_message_id=f"msg_test_{seq}",
+            external_message_id=f"msg_{eid}",
             sent_at=now,
             message_type="text",
             text=text,
@@ -125,33 +120,30 @@ def _build_unified(text: str, seq: int) -> UnifiedIncomingMessage:
     )
 
 
-# ── Test runner ───────────────────────────────────────────────────────────────
-
-def run_test(tc: IntentTestCase, seq: int, rollback: bool = True) -> TestResult:
-    """
-    Run a single intent test case:
-      1. Create a real DB session with commit patched to flush
-      2. Mock send_telegram_message to capture the bot reply
-      3. Call process_incoming_message with real Gemini + real DB reads
-      4. Query the stored ConversationIntent for classification results
-      5. Run all validators
-      6. Roll back the session (unless --no-rollback)
-    """
-    result = TestResult(test_case=tc)
+def run_single(
+    tc: IntentTestCase,
+    message: str,
+    seq: int,
+    rollback: bool = True,
+) -> RowResult:
+    row = RowResult(
+        intent_code=tc.intent_code,
+        expected_intent=tc.expected_intent,
+        expected_route=tc.expected_route,
+        question=message,
+        answer=None,
+        classified_intent=None,
+        classified_route=None,
+        confidence=None,
+    )
     session = SessionLocal()
-
     try:
-        # Prevent any permanent writes: commit() just flushes within the transaction
         session.commit = session.flush  # type: ignore[method-assign]
-
-        unified = _build_unified(tc.message, seq)
+        unified = _build_unified(message, seq)
         captured: dict[str, str] = {}
 
         def _mock_send(chat_id: str, text: str) -> None:
-            captured["chat_id"] = chat_id
             captured["text"] = text
-
-        t0 = time.monotonic()
 
         with patch(
             "app.modules.inbound_messages.service.send_telegram_message",
@@ -159,10 +151,8 @@ def run_test(tc: IntentTestCase, seq: int, rollback: bool = True) -> TestResult:
         ):
             process_incoming_message(session, unified)
 
-        result.elapsed_s = time.monotonic() - t0
-        result.reply_text = captured.get("text")
+        row.answer = captured.get("text")
 
-        # Retrieve the primary ConversationIntent that was just flushed
         intent_record = (
             session.query(ConversationIntent)
             .filter_by(is_primary=True)
@@ -170,24 +160,15 @@ def run_test(tc: IntentTestCase, seq: int, rollback: bool = True) -> TestResult:
             .first()
         )
         if intent_record:
-            result.classified_intent = intent_record.intent_code
-            result.classified_route = intent_record.route_type
-            result.confidence = (
-                float(intent_record.confidence) if intent_record.confidence is not None else None
+            row.classified_intent = intent_record.intent_code
+            row.classified_route = intent_record.route_type
+            row.confidence = (
+                float(intent_record.confidence)
+                if intent_record.confidence is not None
+                else None
             )
-
-        result.check_results = run_checks(
-            tc=tc,
-            classified_intent=result.classified_intent,
-            classified_route=result.classified_route,
-            confidence=result.confidence,
-            reply_text=result.reply_text,
-            session=session,
-        )
-
     except Exception as exc:
-        result.error = f"{type(exc).__name__}: {exc}"
-
+        row.error = f"{type(exc).__name__}: {exc}"
     finally:
         if rollback:
             try:
@@ -195,77 +176,143 @@ def run_test(tc: IntentTestCase, seq: int, rollback: bool = True) -> TestResult:
             except Exception:
                 pass
         session.close()
-
-    return result
-
-
-# ── Output formatting ─────────────────────────────────────────────────────────
-
-def _print_result(result: TestResult, idx: int, total: int, verbose: bool) -> None:
-    tc = result.test_case
-    intent_label = tc.intent_code.upper()
-    msg_preview = tc.message[:52] + "…" if len(tc.message) > 52 else tc.message
-
-    print(f"\n{_LINE}")
-    print(f"{_BOLD}[{idx}/{total}] {intent_label}{_RESET}  {_DIM}{msg_preview}{_RESET}")
-    print(_LINE)
-
-    if result.error:
-        print(f"  {_RED}ERROR  {result.error}{_RESET}")
-        print(f"  {_RED}{_BOLD}RESULT: ERROR{_RESET}")
-        return
-
-    for cr in result.check_results:
-        icon   = f"{_GREEN}✅{_RESET}" if cr.passed else f"{_RED}❌{_RESET}"
-        detail = f"  {_DIM}{cr.detail}{_RESET}" if cr.detail else ""
-        print(f"  {icon} {cr.name:<32}{detail}")
-
-    if verbose and result.reply_text:
-        print(f"\n  {_CYAN}Reply:{_RESET} {result.reply_text}")
-
-    status_color = _GREEN if result.passed else _RED
-    status_word  = "PASS" if result.passed else "FAIL"
-    print(
-        f"\n  {status_color}{_BOLD}RESULT: {status_word}{_RESET}"
-        f"  ({result.n_passed}/{result.n_total} checks passed)"
-        f"  {_DIM}{result.elapsed_s:.1f}s{_RESET}"
-    )
+    return row
 
 
-def _print_summary(results: list[TestResult]) -> None:
-    passed  = [r for r in results if r.passed]
-    failed  = [r for r in results if not r.passed and not r.error]
-    errored = [r for r in results if r.error]
+# ── HTML report generator ─────────────────────────────────────────────────────
 
-    print(f"\n{_LINE}")
-    print(f"{_BOLD}SUMMARY{_RESET}")
-    print(_LINE)
-    print(
-        f"  {_GREEN}✅ Passed : {len(passed):<3}{_RESET}  "
-        f"{_RED}❌ Failed : {len(failed):<3}{_RESET}  "
-        f"{_YELLOW}⚠  Errors : {len(errored)}{_RESET}"
-    )
+def _cell(value: bool, actual: str | None, expected: str) -> str:
+    """Render an intent_match or route_match table cell."""
+    if value:
+        return '<td class="pass">✅</td>'
+    label = html.escape(actual or "—")
+    return f'<td class="fail">❌ <span class="got">got: {label}</span></td>'
 
-    if failed:
-        print(f"\n  {_RED}Failed intents:{_RESET}")
-        for r in failed:
-            bad_checks = [cr.name for cr in r.check_results if not cr.passed]
-            print(f"    • {r.test_case.intent_code:<38}  {_DIM}{', '.join(bad_checks)}{_RESET}")
 
-    if errored:
-        print(f"\n  {_YELLOW}Errored intents:{_RESET}")
-        for r in errored:
-            print(f"    • {r.test_case.intent_code:<38}  {_DIM}{r.error}{_RESET}")
+def generate_html(rows: list[RowResult], elapsed_s: float) -> str:
+    ts = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
+    total   = len(rows)
+    passed  = sum(1 for r in rows if r.fully_passed)
+    failed  = total - passed
+    pct     = round(passed / total * 100) if total else 0
 
-    total_elapsed = sum(r.elapsed_s for r in results)
-    print(f"\n  Total time: {total_elapsed:.1f}s\n")
+    # Group rows by intent for zebra striping
+    intent_order: list[str] = []
+    groups: dict[str, list[RowResult]] = {}
+    for r in rows:
+        if r.intent_code not in groups:
+            intent_order.append(r.intent_code)
+            groups[r.intent_code] = []
+        groups[r.intent_code].append(r)
+
+    tbody_parts: list[str] = []
+    for i, intent_code in enumerate(intent_order):
+        group_rows = groups[intent_code]
+        stripe_class = "stripe-a" if i % 2 == 0 else "stripe-b"
+        for row in group_rows:
+            row_class = "row-pass" if row.fully_passed else "row-fail"
+            if row.error:
+                row_class = "row-error"
+
+            q   = html.escape(row.question)
+            ans = html.escape(row.answer) if row.answer else '<span class="no-answer">no reply generated</span>'
+            conf = f"{row.confidence:.2f}" if row.confidence is not None else "—"
+
+            im_cell  = _cell(row.intent_match,  row.classified_intent, row.expected_intent)
+            rm_cell  = _cell(row.route_match,   row.classified_route,  row.expected_route)
+
+            if row.error:
+                im_cell = f'<td class="fail" colspan="2"><span class="got">{html.escape(row.error)}</span></td>'
+                rm_cell = ""
+                conf    = "—"
+
+            tbody_parts.append(
+                f'<tr class="{row_class} {stripe_class}">'
+                f'<td class="intent-cell">{html.escape(intent_code)}</td>'
+                f'<td class="q-cell">{q}</td>'
+                f'<td class="a-cell">{ans}</td>'
+                f"{im_cell}"
+                f"{rm_cell}"
+                f'<td class="conf-cell">{conf}</td>'
+                f"</tr>"
+            )
+
+    tbody = "\n".join(tbody_parts)
+
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Intent Test Results — {ts}</title>
+<style>
+  * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+  body {{ font-family: system-ui, sans-serif; font-size: 14px; background: #f5f5f5; color: #222; }}
+  header {{ background: #1a1a2e; color: #fff; padding: 20px 32px; }}
+  header h1 {{ font-size: 20px; margin-bottom: 6px; }}
+  .meta {{ font-size: 12px; color: #aaa; }}
+  .stats {{ display: flex; gap: 24px; margin-top: 12px; }}
+  .stat {{ background: #2a2a4e; padding: 8px 16px; border-radius: 6px; font-size: 13px; }}
+  .stat .val {{ font-size: 22px; font-weight: bold; display: block; }}
+  .stat.good .val {{ color: #4caf50; }}
+  .stat.bad  .val {{ color: #f44336; }}
+  .stat.neutral .val {{ color: #90caf9; }}
+  .wrap {{ padding: 24px 32px; }}
+  table {{ border-collapse: collapse; width: 100%; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.1); }}
+  thead th {{ background: #1a1a2e; color: #fff; padding: 10px 12px; text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; position: sticky; top: 0; }}
+  td {{ padding: 8px 12px; vertical-align: top; border-bottom: 1px solid #f0f0f0; }}
+  .intent-cell {{ font-weight: 600; white-space: nowrap; font-size: 12px; color: #555; }}
+  .q-cell  {{ max-width: 280px; }}
+  .a-cell  {{ max-width: 360px; font-size: 13px; color: #444; }}
+  .conf-cell {{ text-align: center; white-space: nowrap; font-size: 13px; }}
+  .pass {{ text-align: center; color: #2e7d32; font-size: 15px; }}
+  .fail {{ text-align: left; color: #c62828; font-size: 13px; }}
+  .got  {{ font-size: 11px; color: #b71c1c; display: block; }}
+  .empty {{ color: #bbb; }}
+  .no-answer {{ color: #c62828; font-style: italic; font-size: 12px; }}
+  .stripe-a.row-pass {{ background: #f9fff9; }}
+  .stripe-b.row-pass {{ background: #f2fef2; }}
+  .stripe-a.row-fail {{ background: #fff8f8; }}
+  .stripe-b.row-fail {{ background: #fff0f0; }}
+  .row-error {{ background: #fff3e0 !important; }}
+  tr:hover td {{ filter: brightness(0.97); }}
+</style>
+</head>
+<body>
+<header>
+  <h1>BrightSmile — Intent Test Results</h1>
+  <div class="meta">Generated {ts} &nbsp;·&nbsp; {total} messages across {len(intent_order)} intents &nbsp;·&nbsp; completed in {elapsed_s:.0f}s</div>
+  <div class="stats">
+    <div class="stat good"><span class="val">{passed}</span>Passed</div>
+    <div class="stat bad"><span class="val">{failed}</span>Failed</div>
+    <div class="stat neutral"><span class="val">{pct}%</span>Pass rate</div>
+  </div>
+</header>
+<div class="wrap">
+<table>
+  <thead>
+    <tr>
+      <th>Intent</th>
+      <th>Question</th>
+      <th>Answer</th>
+      <th>intent_match</th>
+      <th>route_match</th>
+      <th>Confidence</th>
+    </tr>
+  </thead>
+  <tbody>
+{tbody}
+  </tbody>
+</table>
+</div>
+</body>
+</html>"""
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="BrightSmile intent testing loop — real Gemini, real DB, mocked Telegram",
+        description="BrightSmile intent testing loop — generates an HTML report",
     )
     parser.add_argument(
         "--intent",
@@ -273,19 +320,9 @@ def main() -> None:
         help="Run only this intent code (e.g. greeting, price_question)",
     )
     parser.add_argument(
-        "--verbose", "-v",
-        action="store_true",
-        help="Print the full bot reply for each test",
-    )
-    parser.add_argument(
-        "--fail-fast",
-        action="store_true",
-        help="Stop after the first failing test",
-    )
-    parser.add_argument(
         "--no-rollback",
         action="store_true",
-        help="Keep test rows in DB after each run (useful for debugging with psql)",
+        help="Keep test rows in DB after each run (for debugging)",
     )
     args = parser.parse_args()
 
@@ -293,32 +330,46 @@ def main() -> None:
     if args.intent:
         cases = [tc for tc in cases if tc.intent_code == args.intent.lower()]
         if not cases:
-            print(f"{_RED}No test case found for intent: '{args.intent}'{_RESET}")
+            print(f"No test case found for intent: '{args.intent}'")
             print(f"Available: {', '.join(tc.intent_code for tc in INTENT_TEST_CASES)}")
             sys.exit(1)
 
-    total = len(cases)
+    total_msgs = sum(len(tc.messages) for tc in cases)
     rollback = not args.no_rollback
 
     print(f"\n{_BOLD}BrightSmile — Intent Testing Loop{_RESET}")
-    print(f"Running {total} test case(s)  ·  real Gemini  ·  real DB  ·  Telegram mocked")
-    if not rollback:
-        print(f"{_YELLOW}⚠  --no-rollback: test rows will persist in the database{_RESET}")
+    print(f"Running {total_msgs} messages across {len(cases)} intent(s)\n")
 
-    results: list[TestResult] = []
-    for idx, tc in enumerate(cases, 1):
-        result = run_test(tc, seq=idx, rollback=rollback)
-        results.append(result)
-        _print_result(result, idx, total, verbose=args.verbose)
+    all_rows: list[RowResult] = []
+    seq = 0
+    t_start = time.monotonic()
 
-        if args.fail_fast and not result.passed:
-            print(f"\n{_YELLOW}Stopping early (--fail-fast){_RESET}")
-            break
+    for tc in cases:
+        for i, message in enumerate(tc.messages, 1):
+            seq += 1
+            row = run_single(tc, message, seq, rollback=rollback)
+            all_rows.append(row)
 
-    _print_summary(results)
+            icon = f"{_GREEN}✅{_RESET}" if row.fully_passed else f"{_RED}❌{_RESET}"
+            conf = f"{row.confidence:.2f}" if row.confidence is not None else "  —"
+            print(
+                f"  {icon} [{tc.intent_code} {i}/{len(tc.messages)}]"
+                f"  conf={conf}"
+                f"  {_DIM}{message[:60]}{_RESET}"
+            )
 
-    has_failures = any(not r.passed for r in results)
-    sys.exit(1 if has_failures else 0)
+    elapsed = time.monotonic() - t_start
+
+    # Summary
+    passed = sum(1 for r in all_rows if r.fully_passed)
+    failed = len(all_rows) - passed
+    print(f"\n{'─' * 55}")
+    print(f"  {_GREEN}✅ Passed: {passed}{_RESET}   {_RED}❌ Failed: {failed}{_RESET}   ({elapsed:.0f}s)")
+
+    # Write HTML
+    html_content = generate_html(all_rows, elapsed)
+    _REPORT_PATH.write_text(html_content, encoding="utf-8")
+    print(f"\n  Report saved → {_REPORT_PATH}\n")
 
 
 if __name__ == "__main__":
