@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     telegram_http_api_token: str = ""
     gemini_api_key: str = ""
     gemini_model: str = "gemini-2.0-flash"
+    gemini_embedding_model: str = "text-embedding-004"
 
     model_config = SettingsConfigDict(
         env_file=ROOT_ENV_FILE,

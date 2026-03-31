@@ -15,10 +15,10 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any
 
-from google import genai
 from google.genai import types
 
 from app.config import settings
+from app.core.gemini_client import get_gemini_client
 from app.modules.inbound_messages.constants import (
     INTENT_ROUTE_MAP,
     IntentCode,
@@ -26,19 +26,6 @@ from app.modules.inbound_messages.constants import (
 )
 
 logger = logging.getLogger(__name__)
-
-# ---------------------------------------------------------------------------
-# SDK initialisation — deferred to first use so tests can mock before calling
-# ---------------------------------------------------------------------------
-_client: genai.Client | None = None
-
-
-def _get_client() -> genai.Client:
-    """Return the shared client instance, initialising it on first call."""
-    global _client
-    if _client is None:
-        _client = genai.Client(api_key=settings.gemini_api_key)
-    return _client
 
 
 # ---------------------------------------------------------------------------
@@ -204,7 +191,7 @@ def classify_message(
 
     # Call Gemini
     try:
-        response = _get_client().models.generate_content(
+        response = get_gemini_client().models.generate_content(
             model=settings.gemini_model,
             contents=_CLASSIFICATION_SYSTEM_PROMPT + "\n\n" + user_prompt,
             config=types.GenerateContentConfig(
@@ -343,7 +330,7 @@ def generate_reply(
     ]
 
     try:
-        response = _get_client().models.generate_content(
+        response = get_gemini_client().models.generate_content(
             model=settings.gemini_model,
             contents=contents,
             config=types.GenerateContentConfig(

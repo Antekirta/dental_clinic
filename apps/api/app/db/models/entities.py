@@ -3,9 +3,12 @@ from __future__ import annotations
 from datetime import date, datetime, time
 from decimal import Decimal
 
-from sqlalchemy import BigInteger, CheckConstraint, Date, ForeignKey, Identity, Index
+from typing import Any
+
+from sqlalchemy import BigInteger, CheckConstraint, Date, ForeignKey, Identity, Index, Integer
 from sqlalchemy import Numeric, SmallInteger, String, Text, Time, UniqueConstraint, text
-from sqlalchemy.dialects.postgresql import JSONB, TIMESTAMP
+from sqlalchemy.dialects.postgresql import JSONB, TIMESTAMP, TSVECTOR
+from pgvector.sqlalchemy import Vector
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -898,3 +901,113 @@ class HandoffTask(Base):
         back_populates="assigned_handoff_tasks",
         foreign_keys=[assigned_staff_id],
     )
+
+
+# ---------------------------------------------------------------------------
+# Knowledge Base (RAG)
+# ---------------------------------------------------------------------------
+
+
+class KbDocument(Base):
+    __tablename__ = "kb_documents"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('processing', 'ready', 'error')",
+            name="ck_kb_documents_status",
+        ),
+        UniqueConstraint(
+            "content_hash",
+            name="uq_kb_documents_content_hash",
+        ),
+        Index("idx_kb_documents_status", "status"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
+
+    filename: Mapped[str] = mapped_column(String(500), nullable=False)
+    title: Mapped[str | None] = mapped_column(String(500), nullable=True)
+
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+
+    file_size_bytes: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+
+    chunk_count: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        server_default=text("0"),
+    )
+
+    status: Mapped[str] = mapped_column(
+        String(30),
+        nullable=False,
+        server_default=text("'processing'"),
+    )
+
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        server_default=text("NOW()"),
+    )
+
+    updated_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        server_default=text("NOW()"),
+        onupdate=text("NOW()"),
+    )
+
+    chunks: Mapped[list["KbChunk"]] = relationship(
+        back_populates="document",
+        cascade="all, delete-orphan",
+    )
+
+
+class KbChunk(Base):
+    __tablename__ = "kb_chunks"
+    __table_args__ = (
+        UniqueConstraint(
+            "document_id",
+            "chunk_index",
+            name="uq_kb_chunks_document_chunk",
+        ),
+        Index("idx_kb_chunks_document_id", "document_id"),
+        Index("idx_kb_chunks_content_tsv", "content_tsv", postgresql_using="gin"),
+        Index(
+            "idx_kb_chunks_embedding",
+            "embedding",
+            postgresql_using="hnsw",
+            postgresql_with={"m": 16, "ef_construction": 128},
+            postgresql_ops={"embedding": "vector_cosine_ops"},
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
+
+    document_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("kb_documents.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    heading_path: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    token_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    content_tsv: Mapped[Any] = mapped_column(TSVECTOR, nullable=False)
+    embedding: Mapped[list[float]] = mapped_column(Vector(768), nullable=False)
+
+    metadata: Mapped[dict[str, Any]] = mapped_column(
+        JSONB,
+        nullable=False,
+        server_default=text("'{}'::jsonb"),
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        server_default=text("NOW()"),
+    )
+
+    document: Mapped["KbDocument"] = relationship(back_populates="chunks")

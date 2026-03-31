@@ -17,6 +17,7 @@ dependencies = [
     "pydantic-settings",
     "python-dotenv",
     "google-genai>=1.0",
+    "pgvector>=0.3.6",
 ]
 
 [project.optional-dependencies]

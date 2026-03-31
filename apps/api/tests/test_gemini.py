@@ -29,7 +29,7 @@ def _patch_genai(monkeypatch):
     """Prevent real Gemini SDK initialisation on every test."""
     import app.modules.inbound_messages.gemini as mod
 
-    monkeypatch.setattr(mod, "_get_client", lambda: _mock_client)
+    monkeypatch.setattr(mod, "get_gemini_client", lambda: _mock_client)
     _mock_client.reset_mock()
     _mock_client.models.generate_content.side_effect = None
 
