@@ -998,7 +998,8 @@ class KbChunk(Base):
     content_tsv: Mapped[Any] = mapped_column(TSVECTOR, nullable=False)
     embedding: Mapped[list[float]] = mapped_column(Vector(768), nullable=False)
 
-    metadata: Mapped[dict[str, Any]] = mapped_column(
+    chunk_metadata: Mapped[dict[str, Any]] = mapped_column(
+        "metadata",  # DB column stays as "metadata"; "metadata" is reserved by SQLAlchemy
         JSONB,
         nullable=False,
         server_default=text("'{}'::jsonb"),

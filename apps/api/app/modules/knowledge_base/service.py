@@ -130,7 +130,7 @@ def ingest_document(session: Session, filename: str, content: str) -> IngestResp
         doc.error_message = "Ingestion failed — see server logs."
         session.flush()
         return IngestResponse(
-            document_id=doc.id,
+            document_id=doc.id or 0,
             chunk_count=0,
             status="error",
         )
