@@ -182,12 +182,16 @@ def _load_reference_data(
     session: Session,
     intent_code: str,
     extracted_entities: dict[str, Any] | None = None,
+    message_text: str | None = None,
 ) -> dict[str, Any] | None:
     """
     Load reference data relevant to the intent for reply generation.
 
     Only loads data that Gemini needs to compose a helpful answer.
     Returns None if no special data is needed.
+
+    For faq_general and unknown intents, falls back to a hybrid RAG search
+    over the knowledge base when message_text is provided.
     """
     if intent_code == IntentCode.CLINIC_HOURS:
         return _load_branch_hours(session)
@@ -199,7 +203,21 @@ def _load_reference_data(
     if intent_code == IntentCode.SERVICE_INFO:
         service_query = (extracted_entities or {}).get("service")
         return _load_service_details(session, service_query=service_query)
+    if intent_code in (IntentCode.FAQ_GENERAL, IntentCode.UNKNOWN) and message_text:
+        return _load_kb_context(session, message_text)
     return None
+
+
+def _load_kb_context(session: Session, query_text: str) -> dict[str, Any] | None:
+    """Search the knowledge base and return matching chunks as reference data."""
+    from app.modules.knowledge_base.service import search_knowledge_base
+
+    results = search_knowledge_base(session, query_text, limit=5)
+    if not results:
+        return None
+
+    chunks = [r.content for r in results]
+    return {"knowledge_base": chunks}
 
 
 def _load_branch_hours(session: Session) -> dict[str, Any]:
@@ -592,7 +610,10 @@ def process_incoming_message(
 
     if route in (RouteType.AUTO_REPLY, RouteType.AUTO_REPLY_AND_COLLECT):
         reference_data = _load_reference_data(
-            session, classification.intent_code, classification.extracted_entities
+            session,
+            classification.intent_code,
+            classification.extracted_entities,
+            message_text=unified.message.normalized_text,
         )
 
         # For handoff routes that also need a reply (e.g., emergency acknowledgement),
